@@ -1,0 +1,160 @@
+---
+title: Reusable Components
+description: Create custom components for common patterns
+---
+
+One of the key benefits of grafana-react is the ability to create reusable React components that encapsulate common dashboard patterns.
+
+## Basic Pattern
+
+Create a component that wraps a panel with preset configuration:
+
+```tsx
+import { Stat } from 'grafana-react';
+
+interface PercentStatProps {
+  title: string;
+  query: string;
+}
+
+export function PercentStat({ title, query }: PercentStatProps) {
+  return (
+    <Stat
+      title={title}
+      width={6}
+      height={4}
+      unit="percent"
+      thresholds={{ 70: 'yellow', 90: 'red' }}
+      graphMode="area"
+    >
+      {query}
+    </Stat>
+  );
+}
+```
+
+Use it in your dashboard:
+
+```tsx
+<Row title="System Stats">
+  <PercentStat title="CPU %" query="100 - avg(rate(cpu_idle[5m])) * 100" />
+  <PercentStat title="Memory %" query="(1 - mem_free / mem_total) * 100" />
+</Row>
+```
+
+## Row Components
+
+Create reusable row layouts:
+
+```tsx
+import { Row, Stat, Timeseries } from 'grafana-react';
+
+interface ServiceRowProps {
+  service: string;
+}
+
+export function ServiceRow({ service }: ServiceRowProps) {
+  return (
+    <Row title={`${service} Metrics`}>
+      <Stat title="Requests/s" unit="reqps">
+        sum(rate(http_requests_total{'{'}service="{service}"{'}'}[5m]))
+      </Stat>
+      <Stat
+        title="Error Rate"
+        unit="percent"
+        thresholds={{ 1: 'yellow', 5: 'red' }}
+      >
+        sum(rate(http_errors_total{'{'}service="{service}"{'}'}[5m])) /
+        sum(rate(http_requests_total{'{'}service="{service}"{'}'}[5m])) * 100
+      </Stat>
+      <Timeseries title="Latency" unit="ms" legend="right">
+        histogram_quantile(0.99, sum(rate(http_duration_bucket{'{'}service="
+        {service}"{'}'}[5m])) by (le))
+      </Timeseries>
+    </Row>
+  );
+}
+```
+
+Usage:
+
+```tsx
+<Dashboard uid="services" title="Services">
+  <ServiceRow service="api" />
+  <ServiceRow service="web" />
+  <ServiceRow service="worker" />
+</Dashboard>
+```
+
+## Configurable Components
+
+Add props for customization:
+
+```tsx
+interface MetricPanelProps {
+  title: string;
+  query: string;
+  unit?: string;
+  warning?: number;
+  critical?: number;
+  sparkline?: boolean;
+}
+
+export function MetricPanel({
+  title,
+  query,
+  unit = 'short',
+  warning = 70,
+  critical = 90,
+  sparkline = true,
+}: MetricPanelProps) {
+  return (
+    <Stat
+      title={title}
+      unit={unit}
+      thresholds={{ [warning]: 'yellow', [critical]: 'red' }}
+      graphMode={sparkline ? 'area' : 'none'}
+    >
+      {query}
+    </Stat>
+  );
+}
+```
+
+## Component Libraries
+
+Organize reusable components into a shared library:
+
+```
+dashboards/
+  components/
+    index.ts
+    stats.tsx
+    charts.tsx
+    rows.tsx
+  services/
+    api-dashboard.dashboard.tsx
+    web-dashboard.dashboard.tsx
+```
+
+`components/index.ts`:
+
+```tsx
+export { PercentStat, BytesStat, DurationStat } from './stats';
+export { RequestChart, ErrorChart, LatencyChart } from './charts';
+export { ServiceRow, HealthRow } from './rows';
+```
+
+Import in dashboards:
+
+```tsx
+import { ServiceRow, PercentStat } from '../components';
+```
+
+## Best Practices
+
+1. **Keep components focused** - Each component should do one thing well
+2. **Use TypeScript interfaces** - Define clear prop types for documentation
+3. **Set sensible defaults** - Reduce boilerplate at the call site
+4. **Document usage** - Add JSDoc comments for IDE support
+5. **Test components** - Use the render function to validate output JSON

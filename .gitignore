@@ -1,0 +1,12 @@
+# Build outputs
+build/
+docs/dist/
+
+# Dependencies
+node_modules/
+
+# Astro
+docs/.astro/
+
+# Generated docs (from source JSDoc)
+docs/src/content/docs/components/_generated/

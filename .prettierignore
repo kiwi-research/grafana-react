@@ -1,0 +1,5 @@
+# Prettier respects .gitignore by default
+# This file only needs entries for things to ignore from prettier but keep in git
+
+# Lock files (committed for CI, but don't format)
+pnpm-lock.yaml

@@ -1,0 +1,100 @@
+---
+title: Quick Start
+description: Build your first dashboard in 5 minutes
+---
+
+This guide walks you through creating a complete monitoring dashboard.
+
+## Create Your Dashboard File
+
+Create a file named `my-dashboard.tsx`:
+
+```tsx
+import {
+  Dashboard,
+  Row,
+  Stat,
+  Timeseries,
+  Variable,
+  Query,
+} from 'grafana-react';
+
+export default function MyDashboard() {
+  return (
+    <Dashboard
+      uid="my-dashboard"
+      title="My Dashboard"
+      tags={['monitoring']}
+      datasource="prometheus"
+      time="1h"
+    >
+      <Variable name="instance" label="Instance">
+        label_values(up, instance)
+      </Variable>
+
+      <Row title="Summary">
+        <Stat
+          title="CPU %"
+          unit="percent"
+          thresholds={{ 70: 'yellow', 90: 'red' }}
+        >
+          100 - avg(rate(node_cpu_seconds_total{(mode = 'idle')}[5m])) * 100
+        </Stat>
+
+        <Stat
+          title="Memory %"
+          unit="percent"
+          thresholds={{ 70: 'yellow', 90: 'red' }}
+        >
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) *
+          100
+        </Stat>
+      </Row>
+
+      <Row title="Details">
+        <Timeseries
+          title="CPU Over Time"
+          unit="percent"
+          stack="normal"
+          legend={{ placement: 'right', calcs: ['mean', 'max'] }}
+        >
+          <Query refId="user" legend="User">
+            sum(rate(node_cpu_seconds_total{(mode = 'user')}[5m])) * 100
+          </Query>
+          <Query refId="system" legend="System">
+            sum(rate(node_cpu_seconds_total{(mode = 'system')}[5m])) * 100
+          </Query>
+        </Timeseries>
+      </Row>
+    </Dashboard>
+  );
+}
+```
+
+## Build the Dashboard
+
+```bash
+grafana-react build my-dashboard.tsx output/my-dashboard.json
+```
+
+## Import to Grafana
+
+1. Open Grafana
+2. Go to **Dashboards** > **Import**
+3. Upload `output/my-dashboard.json`
+
+## Watch Mode
+
+For development, use watch mode to rebuild on changes:
+
+```bash
+grafana-react watch ./dashboards ./output
+```
+
+This watches all `*.dashboard.tsx` files in `./dashboards` and outputs JSON to `./output`.
+
+## Next Steps
+
+- Learn about [Structure Components](/grafana-react/components/structure/)
+- Explore [Panel Types](/grafana-react/components/panels/overview/)
+- See [Reusable Components](/grafana-react/guides/reusable-components/) patterns

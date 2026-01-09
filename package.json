@@ -1,0 +1,67 @@
+{
+  "name": "grafana-react",
+  "version": "0.0.1",
+  "description": "React-based DSL for creating Grafana dashboards",
+  "type": "module",
+  "license": "MIT",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "bin": {
+    "grafana-react": "./build/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiwi-research/grafana-react.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kiwi-research/grafana-react/issues"
+  },
+  "homepage": "https://github.com/kiwi-research/grafana-react#readme",
+  "keywords": [
+    "grafana",
+    "dashboard",
+    "react",
+    "jsx",
+    "dsl",
+    "monitoring",
+    "visualization",
+    "typescript"
+  ],
+  "scripts": {
+    "build": "tsc -p ./tsconfig.json",
+    "typecheck": "tsgo --noEmit -p ./tsconfig.json",
+    "lint": "pnpm run lint:prettier && pnpm run lint:eslint",
+    "lint:eslint": "eslint src/ --cache",
+    "lint:prettier": "prettier . --check",
+    "lint-fix": "pnpm run lint-fix:prettier && pnpm run lint-fix:eslint",
+    "lint-fix:eslint": "eslint src/ --cache --fix",
+    "lint-fix:prettier": "prettier . --write",
+    "test": "node --test build/**/*.test.js"
+  },
+  "dependencies": {
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@typescript/native-preview": "^7.0.0-dev.20260109.1",
+    "eslint": "^9.39.2",
+    "prettier": "^3.7.4",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.32.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,42 @@
+/* Custom hero image container - responsive layout */
+.hero-images {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-images img:first-child {
+  max-height: 280px;
+  width: auto;
+}
+
+.hero-images img:last-child {
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-height: 160px;
+  width: auto;
+}
+
+/* Stack vertically on mobile */
+@media (max-width: 50rem) {
+  .hero-images {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .hero-images img:first-child {
+    max-width: 120%;
+  }
+
+  .hero-images img:last-child {
+    max-height: 140px;
+    max-width: 70%;
+  }
+}
+
+/* Fix hero-html alignment */
+.hero-html {
+  align-items: center !important;
+  justify-content: center !important;
+}

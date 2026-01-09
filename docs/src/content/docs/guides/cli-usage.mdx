@@ -1,0 +1,163 @@
+---
+title: CLI Usage
+description: Command-line interface reference
+---
+
+grafana-react includes a CLI for building and validating dashboards.
+
+## Commands
+
+### build
+
+Build a single dashboard file to JSON:
+
+```bash
+grafana-react build <input.tsx> [output.json]
+```
+
+**Arguments:**
+
+- `input.tsx` - Path to the dashboard file
+- `output.json` - (Optional) Output path. If omitted, prints to stdout.
+
+**Examples:**
+
+```bash
+# Output to stdout
+grafana-react build my-dashboard.tsx
+
+# Output to file
+grafana-react build my-dashboard.tsx output/my-dashboard.json
+```
+
+### build-all
+
+Build all dashboard files in a directory:
+
+```bash
+grafana-react build-all <input-dir> [output-dir]
+```
+
+Finds all `*.dashboard.tsx` files and builds them.
+
+**Arguments:**
+
+- `input-dir` - Directory containing dashboard files
+- `output-dir` - (Optional) Output directory. Defaults to same as input.
+
+**Examples:**
+
+```bash
+# Build all dashboards, output alongside source files
+grafana-react build-all ./dashboards
+
+# Build to separate output directory
+grafana-react build-all ./dashboards ./output
+```
+
+### validate
+
+Validate a dashboard without generating output:
+
+```bash
+grafana-react validate <input.tsx>
+```
+
+Checks that the dashboard:
+
+- Parses correctly
+- Has valid component structure
+- Has required props
+
+**Examples:**
+
+```bash
+grafana-react validate my-dashboard.tsx
+```
+
+### watch
+
+Watch for changes and rebuild automatically:
+
+```bash
+grafana-react watch <input-dir> [output-dir]
+```
+
+Watches all `*.dashboard.tsx` files and rebuilds on change.
+
+**Arguments:**
+
+- `input-dir` - Directory to watch
+- `output-dir` - (Optional) Output directory
+
+**Examples:**
+
+```bash
+# Watch and build in place
+grafana-react watch ./dashboards
+
+# Watch with separate output
+grafana-react watch ./dashboards ./output
+```
+
+## File Naming Convention
+
+Dashboard files should be named with the `.dashboard.tsx` suffix:
+
+```
+my-dashboard.tsx
+system-overview.dashboard.tsx
+api-monitoring.dashboard.tsx
+```
+
+The CLI uses this pattern to identify dashboard files.
+
+## Output Format
+
+The generated JSON is formatted and ready for import into Grafana:
+
+```json
+{
+  "uid": "my-dashboard",
+  "title": "My Dashboard",
+  "tags": ["monitoring"],
+  "panels": [...],
+  "templating": {...},
+  ...
+}
+```
+
+## Exit Codes
+
+| Code | Meaning                                        |
+| ---- | ---------------------------------------------- |
+| 0    | Success                                        |
+| 1    | Build error (invalid JSX, missing props, etc.) |
+| 2    | File not found                                 |
+
+## Integration with Build Systems
+
+### package.json scripts
+
+```json
+{
+  "scripts": {
+    "build:dashboards": "grafana-react build-all ./dashboards ./output",
+    "dev:dashboards": "grafana-react watch ./dashboards ./output"
+  }
+}
+```
+
+### CI/CD
+
+```yaml
+# GitHub Actions example
+- name: Build dashboards
+  run: npx grafana-react build-all ./dashboards ./output
+
+- name: Upload dashboards
+  uses: actions/upload-artifact@v4
+  with:
+    name: dashboards
+    path: output/*.json
+```

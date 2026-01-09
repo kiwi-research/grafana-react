@@ -1,0 +1,108 @@
+---
+title: Panel Overview
+description: Overview of available panel types
+---
+
+grafana-react provides components for all core Grafana panel types.
+
+## Common Props
+
+All panels share these common props:
+
+| Prop              | Type       | Description                  |
+| ----------------- | ---------- | ---------------------------- |
+| `title`           | string     | Panel title                  |
+| `description`     | string     | Panel description            |
+| `width`           | number     | Grid width (1-24)            |
+| `height`          | number     | Grid height                  |
+| `x`               | number     | X position (0-23)            |
+| `y`               | number     | Y position                   |
+| `repeat`          | string     | Variable to repeat panel for |
+| `repeatDirection` | 'v' \| 'h' | Repeat direction             |
+
+## Panel Categories
+
+### Core Panels
+
+Essential visualization types for most use cases:
+
+- **[Stat](/grafana-react/components/panels/stat/)** - Single value with optional sparkline
+- **[Timeseries](/grafana-react/components/panels/timeseries/)** - Line/bar charts over time
+- **[Table](/grafana-react/components/panels/table/)** - Tabular data display
+- **[BarGauge](/grafana-react/components/panels/bar-gauge/)** - Progress bar visualization
+- **[Gauge](/grafana-react/components/panels/gauge/)** - Circular gauge
+- **[Heatmap](/grafana-react/components/panels/heatmap/)** - Distribution visualization
+- **[Text](/grafana-react/components/panels/text/)** - Markdown/HTML content
+
+### Chart Panels
+
+Additional chart types:
+
+- **BarChart** - Categorical bar charts
+- **PieChart** - Pie/donut charts
+- **Histogram** - Distribution histograms
+- **StateTimeline** - State changes over time
+- **StatusHistory** - Status grid over time
+- **Candlestick** - Financial OHLC charts
+- **Trend** - Sparkline trends
+- **XYChart** - Scatter/bubble charts
+
+### Data Display
+
+Specialized data views:
+
+- **Logs** - Log message display
+- **Datagrid** - Editable data grid
+
+### Specialized
+
+Advanced visualizations:
+
+- **NodeGraph** - Network/relationship graphs
+- **Traces** - Distributed tracing
+- **FlameGraph** - Profiling visualization
+- **Canvas** - Custom layouts
+- **Geomap** - Geographic maps
+
+### Widgets
+
+Dashboard widgets:
+
+- **DashboardList** - Dashboard navigation
+- **AlertList** - Alert status display
+- **AnnotationsList** - Annotation list
+- **News** - RSS/Atom feeds
+
+## Grid Layout
+
+Panels are positioned on a 24-column grid. Width and height are in grid units:
+
+```tsx
+<Row title="Metrics">
+  {/* Full width */}
+  <Timeseries title="CPU" width={24} height={8}>
+    ...
+  </Timeseries>
+
+  {/* Half width, side by side */}
+  <Stat title="Metric 1" width={12} height={4}>
+    ...
+  </Stat>
+  <Stat title="Metric 2" width={12} height={4}>
+    ...
+  </Stat>
+
+  {/* Three columns */}
+  <Stat title="A" width={8}>
+    ...
+  </Stat>
+  <Stat title="B" width={8}>
+    ...
+  </Stat>
+  <Stat title="C" width={8}>
+    ...
+  </Stat>
+</Row>
+```
+
+If width/height aren't specified, panels are auto-positioned within the row.

@@ -1,0 +1,154 @@
+---
+title: Render API
+description: Programmatic rendering of dashboards
+---
+
+The render functions allow you to programmatically convert React dashboard components to Grafana JSON.
+
+## render
+
+Renders a React element to a Grafana dashboard JSON object.
+
+```tsx
+import { render, Dashboard, Row, Stat } from 'grafana-react';
+
+const dashboard = (
+  <Dashboard uid="my-dashboard" title="My Dashboard" datasource="prometheus">
+    <Row title="Metrics">
+      <Stat title="CPU">cpu_usage</Stat>
+    </Row>
+  </Dashboard>
+);
+
+const json = render(dashboard);
+// Returns: GrafanaDashboard object
+```
+
+### Signature
+
+```tsx
+function render(element: React.ReactElement): GrafanaDashboard;
+```
+
+### Returns
+
+A `GrafanaDashboard` object ready for import into Grafana:
+
+```tsx
+interface GrafanaDashboard {
+  uid: string;
+  title: string;
+  tags?: string[];
+  panels: GrafanaPanel[];
+  templating?: { list: GrafanaVariable[] };
+  annotations?: { list: GrafanaAnnotation[] };
+  links?: GrafanaLink[];
+  // ... other Grafana dashboard properties
+}
+```
+
+## renderToString
+
+Renders a React element to a JSON string.
+
+```tsx
+import { renderToString, Dashboard, Row, Stat } from 'grafana-react';
+
+const dashboard = (
+  <Dashboard uid="my-dashboard" title="My Dashboard" datasource="prometheus">
+    <Row title="Metrics">
+      <Stat title="CPU">cpu_usage</Stat>
+    </Row>
+  </Dashboard>
+);
+
+const jsonString = renderToString(dashboard);
+// Returns: formatted JSON string
+```
+
+### Signature
+
+```tsx
+function renderToString(element: React.ReactElement): string;
+```
+
+### Returns
+
+A formatted JSON string with 2-space indentation.
+
+## Usage Examples
+
+### Writing to a file
+
+```tsx
+import fs from 'fs';
+import { renderToString, Dashboard } from 'grafana-react';
+
+const MyDashboard = () => (
+  <Dashboard uid="my-dashboard" title="My Dashboard">
+    {/* ... */}
+  </Dashboard>
+);
+
+fs.writeFileSync('my-dashboard.json', renderToString(<MyDashboard />));
+```
+
+### Dynamic dashboard generation
+
+```tsx
+import { render, Dashboard, Row, Stat } from 'grafana-react';
+
+function createServiceDashboard(serviceName: string) {
+  return render(
+    <Dashboard
+      uid={`${serviceName}-dashboard`}
+      title={`${serviceName} Dashboard`}
+    >
+      <Row title="Health">
+        <Stat title="Up">{`up{service="${serviceName}"}`}</Stat>
+      </Row>
+    </Dashboard>,
+  );
+}
+
+const apiDashboard = createServiceDashboard('api');
+const webDashboard = createServiceDashboard('web');
+```
+
+### Integration tests
+
+```tsx
+import { render, Dashboard, Row, Stat } from 'grafana-react';
+import { expect, test } from 'vitest';
+
+test('dashboard has correct uid', () => {
+  const json = render(
+    <Dashboard uid="test-uid" title="Test">
+      <Row title="Test">
+        <Stat title="Test">up</Stat>
+      </Row>
+    </Dashboard>,
+  );
+
+  expect(json.uid).toBe('test-uid');
+  expect(json.panels).toHaveLength(2); // Row + Stat
+});
+```
+
+## Error Handling
+
+The render functions throw errors for invalid input:
+
+```tsx
+try {
+  const json = render(<Stat title="No Dashboard Parent">up</Stat>);
+} catch (error) {
+  console.error('Invalid dashboard structure:', error.message);
+}
+```
+
+Common errors:
+
+- Missing required props (e.g., Dashboard without uid)
+- Invalid component hierarchy (e.g., panels outside Dashboard)
+- Invalid prop values

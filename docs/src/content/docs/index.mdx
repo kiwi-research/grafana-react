@@ -1,0 +1,78 @@
+---
+title: grafana-react
+description: React DSL for Grafana dashboards
+template: splash
+hero:
+  tagline: Write Grafana dashboards as React components. Type-safe, composable, zero runtime.
+  image:
+    html: '<div class="hero-images"><img src="/grafana-react/img/hero-code.svg" alt="JSX code for Stat panel" /><img src="/grafana-react/img/hero-grafana-stat-panel.png" alt="Rendered Grafana Stat panel" /></div>'
+  actions:
+    - text: Get Started
+      link: /grafana-react/getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/kiwi-research/grafana-react
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid stagger>
+  <Card title="Declarative JSX Syntax" icon="pencil">
+    Write dashboards using familiar React patterns. No more clicking through the
+    Grafana UI.
+  </Card>
+  <Card title="Component Composition" icon="puzzle">
+    Create reusable dashboard components. Share patterns across teams.
+  </Card>
+  <Card title="Type Safety" icon="approve-check">
+    Full TypeScript support with comprehensive types for all Grafana panel
+    options.
+  </Card>
+  <Card title="Zero Runtime" icon="rocket">
+    Compiles to static JSON. No React dependencies in your Grafana instance.
+  </Card>
+</CardGrid>
+
+## Quick Example
+
+```tsx
+import { Dashboard, Row, Stat, Variable } from 'grafana-react';
+
+export default function MyDashboard() {
+  return (
+    <Dashboard uid="my-dashboard" title="My Dashboard" datasource="prometheus">
+      <Variable name="instance">label_values(up, instance)</Variable>
+
+      <Row title="Summary">
+        <Stat
+          title="CPU %"
+          unit="percent"
+          thresholds={{ 70: 'yellow', 90: 'red' }}
+        >
+          100 - avg(rate(cpu_idle[$__rate_interval])) * 100
+        </Stat>
+      </Row>
+    </Dashboard>
+  );
+}
+```
+
+Then build to JSON using the CLI:
+
+```bash
+grafana-react build my-dashboard.tsx output/my-dashboard.json
+```
+
+Or programmatically with `renderToString`:
+
+```ts
+import React from 'react';
+import { renderToString } from 'grafana-react';
+
+// Use the JSON string directly, e.g. add as a ConfigMap with Pulumi
+const json = renderToString(React.createElement(MyDashboard));
+```
