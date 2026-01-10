@@ -22,6 +22,9 @@ const DOCS_DIR = path.resolve(import.meta.dirname, '..');
 const SRC_DIR = path.resolve(DOCS_DIR, '../src');
 const OUTPUT_DIR = path.resolve(DOCS_DIR, 'src/content/docs');
 
+// Base path for the docs site (must match astro.config.mjs)
+const BASE_PATH = '/grafana-react';
+
 // Component mappings: source file -> output MDX file
 interface ComponentMapping {
   source: string;
@@ -217,6 +220,58 @@ const COMPONENT_MAPPINGS: ComponentMapping[] = [
     category: 'panels',
   },
 ];
+
+// Type mappings: source file -> interfaces to document
+interface TypeMapping {
+  source: string;
+  interfaces: string[];
+}
+
+const TYPE_MAPPINGS: TypeMapping[] = [
+  {
+    source: 'types/panel-base.ts',
+    interfaces: [
+      'BasePanelProps',
+      'OverrideConfig',
+      'TableColumnOverride',
+      'Transformation',
+    ],
+  },
+  {
+    source: 'types/display.ts',
+    interfaces: ['LegendConfig'],
+  },
+  {
+    source: 'types/common/axis.ts',
+    interfaces: ['ScaleDistributionConfig', 'AxisConfig'],
+  },
+  {
+    source: 'types/common/viz-options.ts',
+    interfaces: [
+      'VizTooltipOptions',
+      'ReduceDataOptions',
+      'HideSeriesConfig',
+      'SingleStatBaseOptions',
+    ],
+  },
+  {
+    source: 'types/common/field-config.ts',
+    interfaces: [
+      'StackingConfig',
+      'LineStyleConfig',
+      'GraphThresholdsStyleConfig',
+      'GraphFieldConfig',
+    ],
+  },
+];
+
+interface ParsedTypeInfo {
+  name: string;
+  description: string;
+  props: ParsedProp[];
+  extendsType?: string;
+  sourcePath: string;
+}
 
 interface ParsedExample {
   title?: string;
@@ -554,12 +609,182 @@ function generateMdx(component: ParsedComponent, sourcePath: string): string {
   if (component.extendsType) {
     const baseName = component.extendsType.replace(/^Omit<(\w+),.*$/, '$1');
     lines.push(
-      `*Inherits from [${baseName}](/api/types/#${baseName.toLowerCase()})*`,
+      `*Inherits from [${baseName}](${BASE_PATH}/api/types/#${baseName.toLowerCase()})*`,
     );
     lines.push('');
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Parse a specific interface from a source file
+ */
+function parseInterface(
+  sourceFile: SourceFile,
+  interfaceName: string,
+  project: Project,
+  sourcePath: string,
+): ParsedTypeInfo | null {
+  const interfaceDecl = sourceFile.getInterface(interfaceName);
+  if (!interfaceDecl) {
+    console.warn(`Interface ${interfaceName} not found in ${sourcePath}`);
+    return null;
+  }
+
+  // Get JSDoc from the interface
+  const jsDocs = interfaceDecl.getJsDocs();
+  let description = '';
+  if (jsDocs.length > 0) {
+    description = jsDocs[0].getDescription().trim();
+    // Get just the first line/sentence for description
+    const firstLine = description.split('\n')[0].trim();
+    description = firstLine || description;
+  }
+
+  const { props, extendsType } = parseInterfaceProps(interfaceDecl, project);
+
+  return {
+    name: interfaceName,
+    description,
+    props,
+    extendsType,
+    sourcePath,
+  };
+}
+
+/**
+ * Generate the types reference MDX page
+ */
+function generateTypesMdx(types: ParsedTypeInfo[]): string {
+  const lines: string[] = [];
+
+  // Frontmatter
+  lines.push('---');
+  lines.push('title: Types Reference');
+  lines.push('description: Type definitions for grafana-react components');
+  lines.push('---');
+  lines.push('');
+
+  // Auto-generated warning
+  lines.push('{/* AUTO-GENERATED - DO NOT EDIT */}');
+  lines.push('');
+
+  // Introduction
+  lines.push(
+    'This page documents the TypeScript types used by grafana-react components.',
+  );
+  lines.push('');
+
+  // Table of contents
+  lines.push('## Quick Reference');
+  lines.push('');
+  for (const type of types) {
+    lines.push(
+      `- [${type.name}](#${type.name.toLowerCase()}) - ${type.description || 'Type definition'}`,
+    );
+  }
+  lines.push('');
+
+  // Each type as a section
+  for (const type of types) {
+    lines.push(`## ${type.name}`);
+    lines.push('');
+
+    if (type.description) {
+      lines.push(type.description);
+      lines.push('');
+    }
+
+    // Source reference
+    lines.push(`*Source: \`${type.sourcePath}\`*`);
+    lines.push('');
+
+    // Inheritance note
+    if (type.extendsType) {
+      const baseName = type.extendsType.replace(/^Omit<(\w+),.*$/, '$1');
+      // Check if it's a documented type
+      const isDocumented = types.some((t) => t.name === baseName);
+      if (isDocumented) {
+        lines.push(`*Extends [${baseName}](#${baseName.toLowerCase()})*`);
+      } else {
+        lines.push(`*Extends \`${type.extendsType}\`*`);
+      }
+      lines.push('');
+    }
+
+    // Props table
+    if (type.props.length > 0) {
+      lines.push('| Property | Type | Required | Description |');
+      lines.push('|----------|------|----------|-------------|');
+
+      for (const prop of type.props) {
+        const requiredVal = prop.required ? 'Yes' : 'No';
+        const desc = prop.defaultValue
+          ? `${prop.description} (default: ${prop.defaultValue})`
+          : prop.description;
+        lines.push(
+          `| \`${prop.name}\` | \`${prop.type}\` | ${requiredVal} | ${desc} |`,
+        );
+      }
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate types documentation
+ */
+async function generateTypeDocs(
+  project: Project,
+): Promise<{ generated: boolean; error?: string }> {
+  console.log('Generating types documentation...');
+
+  const types: ParsedTypeInfo[] = [];
+
+  for (const mapping of TYPE_MAPPINGS) {
+    const sourcePath = path.resolve(SRC_DIR, mapping.source);
+
+    if (!fs.existsSync(sourcePath)) {
+      console.warn(`Type source file not found: ${mapping.source}`);
+      continue;
+    }
+
+    const sourceFile = project.addSourceFileAtPath(sourcePath);
+
+    for (const interfaceName of mapping.interfaces) {
+      const typeInfo = parseInterface(
+        sourceFile,
+        interfaceName,
+        project,
+        mapping.source,
+      );
+      if (typeInfo) {
+        types.push(typeInfo);
+      }
+    }
+  }
+
+  if (types.length === 0) {
+    return { generated: false, error: 'No types parsed' };
+  }
+
+  // Generate MDX
+  const mdxContent = generateTypesMdx(types);
+  const outputPath = path.resolve(OUTPUT_DIR, 'api/types.mdx');
+
+  // Ensure output directory exists
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  fs.writeFileSync(outputPath, mdxContent);
+  console.log(`Generated: api/types.mdx (${types.length} types)`);
+
+  return { generated: true };
 }
 
 /**
@@ -627,6 +852,19 @@ async function generateDocs(filter?: string): Promise<void> {
       generated++;
     } catch (error) {
       console.error(`Error processing ${mapping.source}:`, error);
+      errors++;
+    }
+  }
+
+  console.log('');
+
+  // Generate types documentation (unless filtering for specific components)
+  if (!filter || filter === 'types') {
+    const typesResult = await generateTypeDocs(project);
+    if (typesResult.generated) {
+      generated++;
+    } else if (typesResult.error) {
+      console.error(`Types generation error: ${typesResult.error}`);
       errors++;
     }
   }

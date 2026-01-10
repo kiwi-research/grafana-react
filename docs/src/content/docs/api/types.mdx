@@ -1,0 +1,241 @@
+---
+title: Types Reference
+description: Type definitions for grafana-react components
+---
+
+{/* AUTO-GENERATED - DO NOT EDIT */}
+
+This page documents the TypeScript types used by grafana-react components.
+
+## Quick Reference
+
+- [BasePanelProps](#basepanelprops) - Type definition
+- [OverrideConfig](#overrideconfig) - Override configuration for field-specific styling
+- [TableColumnOverride](#tablecolumnoverride) - Table column override configuration
+- [Transformation](#transformation) - Transformation configuration
+- [LegendConfig](#legendconfig) - Legend configuration
+- [ScaleDistributionConfig](#scaledistributionconfig) - Scale distribution configuration
+- [AxisConfig](#axisconfig) - Axis configuration
+- [VizTooltipOptions](#viztooltipoptions) - Tooltip configuration
+- [ReduceDataOptions](#reducedataoptions) - Data reduction options
+- [HideSeriesConfig](#hideseriesconfig) - Hide series configuration
+- [SingleStatBaseOptions](#singlestatbaseoptions) - Single stat base options
+- [StackingConfig](#stackingconfig) - Stacking configuration
+- [LineStyleConfig](#linestyleconfig) - Line style configuration
+- [GraphThresholdsStyleConfig](#graphthresholdsstyleconfig) - Graph thresholds style configuration
+- [GraphFieldConfig](#graphfieldconfig) - Graph field configuration
+
+## BasePanelProps
+
+_Source: `types/panel-base.ts`_
+
+| Property          | Type         | Required | Description                                                           |
+| ----------------- | ------------ | -------- | --------------------------------------------------------------------- |
+| `title`           | `string`     | Yes      | Panel title                                                           |
+| `description`     | `string`     | No       | Panel description                                                     |
+| `datasource`      | `string`     | No       | Override datasource for this panel (defaults to dashboard datasource) |
+| `width`           | `number`     | No       | Panel width in grid units (1-24)                                      |
+| `height`          | `number`     | No       | Panel height in grid units                                            |
+| `x`               | `number`     | No       | X position (0-23)                                                     |
+| `y`               | `number`     | No       | Y position                                                            |
+| `repeat`          | `string`     | No       | Variable to repeat panel for                                          |
+| `repeatDirection` | `'v' \| 'h'` | No       | Repeat direction                                                      |
+| `children`        | `ReactNode`  | No       | Panel children (queries or query strings)                             |
+
+## OverrideConfig
+
+Override configuration for field-specific styling
+
+_Source: `types/panel-base.ts`_
+
+| Property      | Type                  | Required | Description                |
+| ------------- | --------------------- | -------- | -------------------------- |
+| `refId`       | `string`              | No       | Match by query refId       |
+| `fieldName`   | `string`              | No       | Match by exact field name  |
+| `fieldRegex`  | `string`              | No       | Match by field name regex  |
+| `color`       | `string`              | No       | Fixed color                |
+| `colorMode`   | `'shades' \| 'fixed'` | No       | Color mode (shades, fixed) |
+| `displayName` | `string`              | No       | Override display name      |
+| `thresholds`  | `ThresholdSpec`       | No       | Override thresholds        |
+
+## TableColumnOverride
+
+Table column override configuration
+
+_Source: `types/panel-base.ts`_
+
+| Property | Type     | Required | Description            |
+| -------- | -------- | -------- | ---------------------- |
+| `name`   | `string` | Yes      | Column name to match   |
+| `unit`   | `string` | No       | Display unit           |
+| `width`  | `number` | No       | Column width in pixels |
+
+## Transformation
+
+Transformation configuration
+
+_Source: `types/panel-base.ts`_
+
+| Property  | Type                      | Required | Description            |
+| --------- | ------------------------- | -------- | ---------------------- |
+| `id`      | `string`                  | Yes      | Transformation type ID |
+| `options` | `Record<string, unknown>` | Yes      | Transformation options |
+
+## LegendConfig
+
+Legend configuration
+
+_Source: `types/display.ts`_
+
+| Property      | Type                | Required | Description |
+| ------------- | ------------------- | -------- | ----------- |
+| `placement`   | `LegendPlacement`   | No       |             |
+| `displayMode` | `LegendDisplayMode` | No       |             |
+| `calcs`       | `LegendCalc[]`      | No       |             |
+| `sortBy`      | `string`            | No       |             |
+| `sortDesc`    | `boolean`           | No       |             |
+
+## ScaleDistributionConfig
+
+Scale distribution configuration
+
+_Source: `types/common/axis.ts`_
+
+| Property          | Type                    | Required | Description                              |
+| ----------------- | ----------------------- | -------- | ---------------------------------------- |
+| `type`            | `ScaleDistributionType` | Yes      | Scale type                               |
+| `log`             | `number`                | No       | Log base when type is 'log' (default: 2) |
+| `linearThreshold` | `number`                | No       | Linear threshold for symlog scale        |
+
+## AxisConfig
+
+Axis configuration
+
+_Source: `types/common/axis.ts`_
+
+| Property            | Type                      | Required | Description                            |
+| ------------------- | ------------------------- | -------- | -------------------------------------- |
+| `axisPlacement`     | `AxisPlacement`           | No       | Axis placement relative to the graph   |
+| `axisLabel`         | `string`                  | No       | Axis label text                        |
+| `axisWidth`         | `number`                  | No       | Axis width in pixels                   |
+| `axisSoftMin`       | `number`                  | No       | Soft minimum (can be exceeded by data) |
+| `axisSoftMax`       | `number`                  | No       | Soft maximum (can be exceeded by data) |
+| `axisColorMode`     | `AxisColorMode`           | No       | Axis color mode                        |
+| `axisGridShow`      | `boolean`                 | No       | Show axis grid lines                   |
+| `axisBorderShow`    | `boolean`                 | No       | Show axis border                       |
+| `axisCenteredZero`  | `boolean`                 | No       | Center axis at zero                    |
+| `scaleDistribution` | `ScaleDistributionConfig` | No       | Scale distribution configuration       |
+
+## VizTooltipOptions
+
+Tooltip configuration
+
+_Source: `types/common/viz-options.ts`_
+
+| Property    | Type                 | Required | Description                                           |
+| ----------- | -------------------- | -------- | ----------------------------------------------------- |
+| `mode`      | `TooltipDisplayMode` | Yes      | Tooltip display mode                                  |
+| `sort`      | `SortOrder`          | No       | Sort order for values in tooltip (defaults to 'none') |
+| `maxHeight` | `number`             | No       | Maximum tooltip height in pixels                      |
+| `maxWidth`  | `number`             | No       | Maximum tooltip width in pixels                       |
+
+## ReduceDataOptions
+
+Data reduction options
+
+_Source: `types/common/viz-options.ts`_
+
+| Property | Type                       | Required | Description                                           |
+| -------- | -------------------------- | -------- | ----------------------------------------------------- |
+| `calcs`  | `(LegendCalc \| string)[]` | Yes      | Calculations to perform (e.g., 'mean', 'max', 'last') |
+| `fields` | `string`                   | No       | Field name or regex to match                          |
+| `values` | `boolean`                  | No       | Reduce all values, not just series                    |
+| `limit`  | `number`                   | No       | Limit number of values                                |
+
+## HideSeriesConfig
+
+Hide series configuration
+
+_Source: `types/common/viz-options.ts`_
+
+| Property  | Type      | Required | Description             |
+| --------- | --------- | -------- | ----------------------- |
+| `legend`  | `boolean` | Yes      | Hide from legend        |
+| `tooltip` | `boolean` | Yes      | Hide from tooltip       |
+| `viz`     | `boolean` | Yes      | Hide from visualization |
+
+## SingleStatBaseOptions
+
+Single stat base options
+
+_Source: `types/common/viz-options.ts`_
+
+_Extends `TextFormattingOptions`_
+
+| Property        | Type                | Required | Description                      |
+| --------------- | ------------------- | -------- | -------------------------------- |
+| `reduceOptions` | `ReduceDataOptions` | No       | Data reduction options           |
+| `orientation`   | `VizOrientation`    | No       | Orientation of the visualization |
+
+## StackingConfig
+
+Stacking configuration
+
+_Source: `types/common/field-config.ts`_
+
+| Property | Type           | Required | Description            |
+| -------- | -------------- | -------- | ---------------------- |
+| `mode`   | `StackingMode` | Yes      | Stacking mode          |
+| `group`  | `string`       | No       | Stack group identifier |
+
+## LineStyleConfig
+
+Line style configuration
+
+_Source: `types/common/field-config.ts`_
+
+| Property | Type            | Required | Description                                    |
+| -------- | --------------- | -------- | ---------------------------------------------- |
+| `fill`   | `LineStyleFill` | No       | Line fill style                                |
+| `dash`   | `number[]`      | No       | Dash pattern array [dash, gap, dash, gap, ...] |
+
+## GraphThresholdsStyleConfig
+
+Graph thresholds style configuration
+
+_Source: `types/common/field-config.ts`_
+
+| Property | Type             | Required | Description            |
+| -------- | ---------------- | -------- | ---------------------- |
+| `mode`   | `ThresholdStyle` | Yes      | Threshold display mode |
+
+## GraphFieldConfig
+
+Graph field configuration
+
+_Source: `types/common/field-config.ts`_
+
+_Extends [AxisConfig](#axisconfig)_
+
+| Property            | Type                           | Required | Description                                                                    |
+| ------------------- | ------------------------------ | -------- | ------------------------------------------------------------------------------ |
+| `drawStyle`         | `'line' \| 'bars' \| 'points'` | No       | Draw style for the series                                                      |
+| `gradientMode`      | `GraphGradientMode`            | No       | Gradient mode for fill                                                         |
+| `thresholdsStyle`   | `GraphThresholdsStyleConfig`   | No       | Threshold display style                                                        |
+| `lineColor`         | `string`                       | No       | Line color override                                                            |
+| `lineWidth`         | `number`                       | No       | Line width in pixels                                                           |
+| `lineInterpolation` | `LineInterpolation`            | No       | Line interpolation style                                                       |
+| `lineStyle`         | `LineStyleConfig`              | No       | Line style (solid, dash, dot)                                                  |
+| `fillColor`         | `string`                       | No       | Fill color override                                                            |
+| `fillOpacity`       | `number`                       | No       | Fill opacity (0-100)                                                           |
+| `showPoints`        | `VisibilityMode`               | No       | Show points on lines                                                           |
+| `pointSize`         | `number`                       | No       | Point size in pixels                                                           |
+| `pointColor`        | `string`                       | No       | Point color override                                                           |
+| `stacking`          | `StackingConfig`               | No       | Stacking configuration                                                         |
+| `hideFrom`          | `HideSeriesConfig`             | No       | Hide series from legend/tooltip/viz                                            |
+| `barAlignment`      | `BarAlignment`                 | No       | Bar alignment relative to time point                                           |
+| `barMaxWidth`       | `number`                       | No       | Maximum bar width in pixels                                                    |
+| `barWidthFactor`    | `number`                       | No       | Bar width factor (0-1)                                                         |
+| `spanNulls`         | `boolean \| number`            | No       | Connect null values (true, false, or threshold in ms)                          |
+| `insertNulls`       | `boolean \| number`            | No       | Insert nulls when time gap exceeds threshold (true, false, or threshold in ms) |
+| `transform`         | `'constant' \| 'negative-Y'`   | No       | Transform values                                                               |
