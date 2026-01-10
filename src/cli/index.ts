@@ -11,6 +11,22 @@
  *   grafana-react watch <dir> [outdir]       Watch and rebuild on changes
  */
 
+// Register tsx loader for TypeScript/TSX support
+try {
+  const { register } = await import('tsx/esm/api');
+  register();
+} catch {
+  console.error(`Error: The grafana-react CLI requires 'tsx' to be installed.
+
+Install it with:
+  npm install tsx@4
+
+Or install all peer dependencies:
+  npm install react@19 tsx@4
+`);
+  process.exit(1);
+}
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import React from 'react';
@@ -82,8 +98,8 @@ async function loadDashboard(inputFile: string): Promise<React.ReactElement> {
     error(`Expected .tsx or .ts file, got ${ext}`);
   }
 
-  // Import the module
-  const module = await import(absolutePath);
+  // Import the module (tsx loader handles TSX transformation)
+  const module = (await import(absolutePath)) as Record<string, unknown>;
 
   // Find the dashboard component
   const Component =

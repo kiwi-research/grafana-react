@@ -74,7 +74,7 @@ export default function MyDashboard() {
 ## Build the Dashboard
 
 ```bash
-grafana-react build my-dashboard.tsx output/my-dashboard.json
+npx grafana-react build my-dashboard.tsx output/my-dashboard.json
 ```
 
 ## Import to Grafana
@@ -88,7 +88,7 @@ grafana-react build my-dashboard.tsx output/my-dashboard.json
 For development, use watch mode to rebuild on changes:
 
 ```bash
-grafana-react watch ./dashboards ./output
+npx grafana-react watch ./dashboards ./output
 ```
 
 This watches all `*.dashboard.tsx` files in `./dashboards` and outputs JSON to `./output`.

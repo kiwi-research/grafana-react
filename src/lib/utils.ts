@@ -22,7 +22,8 @@ import type { GrafanaThreshold } from '../types/grafana-json.js';
  * Get children from a React element as an array
  */
 export function getChildren(element: React.ReactElement): React.ReactNode[] {
-  const children = element.props?.children;
+  const props = element.props as { children?: React.ReactNode };
+  const children = props?.children;
   if (!children) return [];
   return React.Children.toArray(children);
 }

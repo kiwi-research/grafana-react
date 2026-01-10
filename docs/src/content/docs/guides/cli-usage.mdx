@@ -5,6 +5,10 @@ description: Command-line interface reference
 
 grafana-react includes a CLI for building and validating dashboards.
 
+```bash
+npx grafana-react build my-dashboard.tsx
+```
+
 ## Commands
 
 ### build
@@ -12,7 +16,7 @@ grafana-react includes a CLI for building and validating dashboards.
 Build a single dashboard file to JSON:
 
 ```bash
-grafana-react build <input.tsx> [output.json]
+npx grafana-react build <input.tsx> [output.json]
 ```
 
 **Arguments:**
@@ -24,10 +28,10 @@ grafana-react build <input.tsx> [output.json]
 
 ```bash
 # Output to stdout
-grafana-react build my-dashboard.tsx
+npx grafana-react build my-dashboard.tsx
 
 # Output to file
-grafana-react build my-dashboard.tsx output/my-dashboard.json
+npx grafana-react build my-dashboard.tsx output/my-dashboard.json
 ```
 
 ### build-all
@@ -35,7 +39,7 @@ grafana-react build my-dashboard.tsx output/my-dashboard.json
 Build all dashboard files in a directory:
 
 ```bash
-grafana-react build-all <input-dir> [output-dir]
+npx grafana-react build-all <input-dir> [output-dir]
 ```
 
 Finds all `*.dashboard.tsx` files and builds them.
@@ -49,10 +53,10 @@ Finds all `*.dashboard.tsx` files and builds them.
 
 ```bash
 # Build all dashboards, output alongside source files
-grafana-react build-all ./dashboards
+npx grafana-react build-all ./dashboards
 
 # Build to separate output directory
-grafana-react build-all ./dashboards ./output
+npx grafana-react build-all ./dashboards ./output
 ```
 
 ### validate
@@ -60,7 +64,7 @@ grafana-react build-all ./dashboards ./output
 Validate a dashboard without generating output:
 
 ```bash
-grafana-react validate <input.tsx>
+npx grafana-react validate <input.tsx>
 ```
 
 Checks that the dashboard:
@@ -72,7 +76,7 @@ Checks that the dashboard:
 **Examples:**
 
 ```bash
-grafana-react validate my-dashboard.tsx
+npx grafana-react validate my-dashboard.tsx
 ```
 
 ### watch
@@ -80,7 +84,7 @@ grafana-react validate my-dashboard.tsx
 Watch for changes and rebuild automatically:
 
 ```bash
-grafana-react watch <input-dir> [output-dir]
+npx grafana-react watch <input-dir> [output-dir]
 ```
 
 Watches all `*.dashboard.tsx` files and rebuilds on change.
@@ -94,10 +98,10 @@ Watches all `*.dashboard.tsx` files and rebuilds on change.
 
 ```bash
 # Watch and build in place
-grafana-react watch ./dashboards
+npx grafana-react watch ./dashboards
 
 # Watch with separate output
-grafana-react watch ./dashboards ./output
+npx grafana-react watch ./dashboards ./output
 ```
 
 ## File Naming Convention

@@ -19,7 +19,7 @@ React-based DSL for creating Grafana dashboards. Write dashboards as JSX compone
 ## Installation
 
 ```bash
-npm install grafana-react react
+npm install grafana-react react@19 tsx@4
 ```
 
 ## Quick Start
@@ -55,7 +55,7 @@ export default function MyDashboard() {
 Build to JSON using the CLI:
 
 ```bash
-grafana-react build my-dashboard.tsx output/my-dashboard.json
+npx grafana-react build my-dashboard.tsx output/my-dashboard.json
 ```
 
 Or programmatically with `renderToString`:
@@ -80,10 +80,10 @@ Full documentation is available at: **[kiwi-research.github.io/grafana-react](ht
 ## CLI Commands
 
 ```bash
-grafana-react build <input.tsx> [output.json]     # Build single dashboard
-grafana-react build-all <dir> [output-dir]        # Build all dashboards
-grafana-react validate <input.tsx>                # Validate without output
-grafana-react watch <dir> [output-dir]            # Watch and rebuild
+npx grafana-react build <input.tsx> [output.json]     # Build single dashboard
+npx grafana-react build-all <dir> [output-dir]        # Build all dashboards
+npx grafana-react validate <input.tsx>                # Validate without output
+npx grafana-react watch <dir> [output-dir]            # Watch and rebuild
 ```
 
 ## License

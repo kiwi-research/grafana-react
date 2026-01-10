@@ -17,8 +17,8 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
-    "ts-morph": "^24.0.0",
+    "ts-morph": "^27.0.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
   }
 }
