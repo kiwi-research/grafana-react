@@ -40,3 +40,10 @@
   align-items: center !important;
   justify-content: center !important;
 }
+
+/* Logo size in navbar */
+[data-has-hero] header .site-title img,
+header .site-title img {
+  height: 26px;
+  width: 26px;
+}

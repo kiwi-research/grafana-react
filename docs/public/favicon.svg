@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Grafana-style outer ring segments -->
+  <circle
+    cx="16"
+    cy="16"
+    r="13"
+    stroke="#F46800"
+    stroke-width="3"
+    stroke-dasharray="20 6"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- React-style center dot -->
+  <circle cx="16" cy="16" r="5" fill="#61DAFB"/>
+</svg>

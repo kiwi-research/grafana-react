@@ -7,6 +7,11 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'grafana-react',
+      favicon: '/favicon.svg',
+      logo: {
+        src: './src/assets/logo.svg',
+        alt: 'grafana-react',
+      },
       customCss: ['./src/styles/custom.css'],
       description: 'React DSL for Grafana dashboards',
       social: [
