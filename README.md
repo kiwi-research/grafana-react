@@ -3,7 +3,7 @@
 React-based DSL for creating Grafana dashboards. Write dashboards as JSX components and compile them to Grafana JSON.
 
 <p align="center">
-  <img src="docs/public/img/hero-code.svg" alt="JSX code for Stat panel" height="180" />
+  <img src="docs/public/img/hero-code.png" alt="JSX code for Stat panel" height="180" />
   &nbsp;&nbsp;&nbsp;
   <img src="docs/public/img/hero-grafana-stat-panel.png" alt="Rendered Grafana Stat panel" height="140" />
 </p>
