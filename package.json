@@ -1,6 +1,6 @@
 {
   "name": "grafana-react",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "React-based DSL for creating Grafana dashboards",
   "type": "module",
   "license": "MIT",

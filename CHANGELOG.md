@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-01-16
+
+### Added
+
+- **Value Mappings**: Transform values to text/colors with `valueMappings` prop
+  - Support for exact value, range, regex, and special value mappings
+- **Defaults System**: Apply consistent configuration across panels
+  - `<Defaults>` component for scoped defaults
+  - `defaults` prop on `<Dashboard>` for dashboard-wide defaults
+  - `--defaults` CLI flag to load defaults from JSON file
+  - Per-panel-type overrides with `panels` config
+- **Container Component**: Nested grid layouts within rows
+  - Fixed width or fill remaining space
+- **FieldConfigProps**: Shared interface for common field configuration
+  - Consolidates `unit`, `decimals`, `thresholds`, `baseColor`, `valueMappings`, `noValue`
+- **Extend Prop**: Escape hatch for unsupported Grafana features
+  - Deep-merge raw JSON into panel output
+- **Table Enhancements**:
+  - Data links on columns (`link` prop)
+  - Cell display modes (`cellMode`: gauge, color-text, color-background)
+  - Per-column thresholds, decimals, and display names
+- **Color Type Improvements**:
+  - Discriminated union for `OverrideConfig` based on color mode
+  - `FixedColorMode`, `ContinuousColorMode`, `PaletteColorMode` types
+  - `ColorSeriesBy` for continuous color calculation
+- **Panel Improvements**:
+  - `marginLeft` prop for spacing before panels
+  - `min`/`max` props on Stat for sparkline Y-axis
+  - Legend `width` prop for right-placed legends
+
 ## [0.0.1] - 2026-01-09
 
 ### Added
@@ -29,5 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tooltip configuration
 - Row padding support
 
-[Unreleased]: https://github.com/kiwi-research/grafana-react/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/kiwi-research/grafana-react/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/kiwi-research/grafana-react/compare/v0.0.1...v0.0.4
 [0.0.1]: https://github.com/kiwi-research/grafana-react/releases/tag/v0.0.1
