@@ -10,10 +10,12 @@ This page documents the TypeScript types used by grafana-react components.
 ## Quick Reference
 
 - [BasePanelProps](#basepanelprops) - Type definition
-- [OverrideConfig](#overrideconfig) - Override configuration for field-specific styling
 - [TableColumnOverride](#tablecolumnoverride) - Table column override configuration
 - [Transformation](#transformation) - Transformation configuration
 - [LegendConfig](#legendconfig) - Legend configuration
+- [FieldDefaults](#fielddefaults) - Default field configuration options.
+- [PanelOptionDefaults](#paneloptiondefaults) - Default panel options.
+- [PanelDefaults](#paneldefaults) - Combined defaults for panels.
 - [ScaleDistributionConfig](#scaledistributionconfig) - Scale distribution configuration
 - [AxisConfig](#axisconfig) - Axis configuration
 - [VizTooltipOptions](#viztooltipoptions) - Tooltip configuration
@@ -29,34 +31,21 @@ This page documents the TypeScript types used by grafana-react components.
 
 _Source: `types/panel-base.ts`_
 
-| Property          | Type         | Required | Description                                                           |
-| ----------------- | ------------ | -------- | --------------------------------------------------------------------- |
-| `title`           | `string`     | Yes      | Panel title                                                           |
-| `description`     | `string`     | No       | Panel description                                                     |
-| `datasource`      | `string`     | No       | Override datasource for this panel (defaults to dashboard datasource) |
-| `width`           | `number`     | No       | Panel width in grid units (1-24)                                      |
-| `height`          | `number`     | No       | Panel height in grid units                                            |
-| `x`               | `number`     | No       | X position (0-23)                                                     |
-| `y`               | `number`     | No       | Y position                                                            |
-| `repeat`          | `string`     | No       | Variable to repeat panel for                                          |
-| `repeatDirection` | `'v' \| 'h'` | No       | Repeat direction                                                      |
-| `children`        | `ReactNode`  | No       | Panel children (queries or query strings)                             |
+| Property          | Type                      | Required | Description                                                           |
+| ----------------- | ------------------------- | -------- | --------------------------------------------------------------------- |
+| `title`           | `string`                  | Yes      | Panel title                                                           |
+| `description`     | `string`                  | No       | Panel description                                                     |
+| `datasource`      | `string`                  | No       | Override datasource for this panel (defaults to dashboard datasource) |
+| `width`           | `number`                  | No       | Panel width in grid units (1-24)                                      |
+| `height`          | `number`                  | No       | Panel height in grid units                                            |
+| `marginLeft`      | `number`                  | No       | Left margin in grid units - adds empty space before the panel         |
+| `repeat`          | `string`                  | No       | Variable to repeat panel for                                          |
+| `repeatDirection` | `'v' \| 'h'`              | No       | Repeat direction                                                      |
+| `children`        | `ReactNode`               | No       | Panel children (queries or query strings)                             |
+| `extend`          | `Record<string, unknown>` | No       | Raw JSON to deep-merge into the panel output.                         |
 
-## OverrideConfig
-
-Override configuration for field-specific styling
-
-_Source: `types/panel-base.ts`_
-
-| Property      | Type                  | Required | Description                |
-| ------------- | --------------------- | -------- | -------------------------- |
-| `refId`       | `string`              | No       | Match by query refId       |
-| `fieldName`   | `string`              | No       | Match by exact field name  |
-| `fieldRegex`  | `string`              | No       | Match by field name regex  |
-| `color`       | `string`              | No       | Fixed color                |
-| `colorMode`   | `'shades' \| 'fixed'` | No       | Color mode (shades, fixed) |
-| `displayName` | `string`              | No       | Override display name      |
-| `thresholds`  | `ThresholdSpec`       | No       | Override thresholds        |
+Use this escape hatch for Grafana features not yet supported by typed props,
+or for custom Grafana fork extensions. |
 
 ## TableColumnOverride
 
@@ -64,11 +53,19 @@ Table column override configuration
 
 _Source: `types/panel-base.ts`_
 
-| Property | Type     | Required | Description            |
-| -------- | -------- | -------- | ---------------------- |
-| `name`   | `string` | Yes      | Column name to match   |
-| `unit`   | `string` | No       | Display unit           |
-| `width`  | `number` | No       | Column width in pixels |
+| Property      | Type                                | Required | Description                                                                                      |
+| ------------- | ----------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `name`        | `string`                            | Yes      | Column name to match                                                                             |
+| `unit`        | `string`                            | No       | Display unit                                                                                     |
+| `width`       | `number`                            | No       | Column width in pixels                                                                           |
+| `displayName` | `string`                            | No       | Override display name for column header                                                          |
+| `link`        | `TableDataLink`                     | No       | Data link for cell values                                                                        |
+| `decimals`    | `number`                            | No       | Number of decimal places                                                                         |
+| `cellMode`    | ` \| 'auto' \| 'color-text' \| ...` | No       | Cell display mode                                                                                |
+| `gaugeMode`   | `'basic' \| 'gradient' \| 'lcd'`    | No       | For gauge cellMode: display mode (basic=solid color, gradient=threshold gradient, lcd=segmented) |
+| `min`         | `number`                            | No       | For gauge mode: minimum value                                                                    |
+| `max`         | `number`                            | No       | For gauge mode: maximum value                                                                    |
+| `thresholds`  | `ThresholdSpec`                     | No       | Per-column thresholds (overrides table-level thresholds)                                         |
 
 ## Transformation
 
@@ -87,13 +84,55 @@ Legend configuration
 
 _Source: `types/display.ts`_
 
-| Property      | Type                | Required | Description |
-| ------------- | ------------------- | -------- | ----------- |
-| `placement`   | `LegendPlacement`   | No       |             |
-| `displayMode` | `LegendDisplayMode` | No       |             |
-| `calcs`       | `LegendCalc[]`      | No       |             |
-| `sortBy`      | `string`            | No       |             |
-| `sortDesc`    | `boolean`           | No       |             |
+| Property      | Type                | Required | Description                                                        |
+| ------------- | ------------------- | -------- | ------------------------------------------------------------------ |
+| `placement`   | `LegendPlacement`   | No       |                                                                    |
+| `displayMode` | `LegendDisplayMode` | No       |                                                                    |
+| `calcs`       | `LegendCalc[]`      | No       |                                                                    |
+| `sortBy`      | `string`            | No       |                                                                    |
+| `sortDesc`    | `boolean`           | No       |                                                                    |
+| `width`       | `number`            | No       | Width of legend in pixels (only applies when placement is 'right') |
+
+## FieldDefaults
+
+Default field configuration options.
+
+_Source: `types/defaults.ts`_
+
+| Property         | Type                                       | Required | Description                                                            |
+| ---------------- | ------------------------------------------ | -------- | ---------------------------------------------------------------------- |
+| `colorMode`      | `ColorMode`                                | No       | Default color mode for panels                                          |
+| `axisBorderShow` | `boolean`                                  | No       | Default axis border visibility                                         |
+| `axisColorMode`  | `'text' \| 'series'`                       | No       | Default axis color mode                                                |
+| `axisPlacement`  | `'auto' \| 'left' \| 'right' \| 'hidden'`  | No       | Default axis placement                                                 |
+| `axisGridShow`   | `boolean`                                  | No       | Default axis grid visibility                                           |
+| `lineWidth`      | `number`                                   | No       | Default line width                                                     |
+| `fill`           | `number`                                   | No       | Default fill opacity (0-100)                                           |
+| `gradientMode`   | `'none' \| 'opacity' \| 'hue' \| 'scheme'` | No       | Default gradient mode                                                  |
+| `pointSize`      | `number`                                   | No       | Default point size                                                     |
+| `showPoints`     | `'auto' \| 'always' \| 'never'`            | No       | Default show points mode                                               |
+| `thresholdStyle` | `ThresholdStyle`                           | No       | Default threshold display style                                        |
+| `seriesBy`       | `ColorSeriesBy`                            | No       | For continuous color modes, default value to use for color calculation |
+
+## PanelOptionDefaults
+
+Default panel options.
+
+_Source: `types/defaults.ts`_
+
+| Property      | Type                            | Required | Description                  |
+| ------------- | ------------------------------- | -------- | ---------------------------- |
+| `legend`      | `LegendConfig \| false`         | No       | Default legend configuration |
+| `tooltipMode` | `'single' \| 'multi' \| 'none'` | No       | Default tooltip mode         |
+| `tooltipSort` | `'none' \| 'asc' \| 'desc'`     | No       | Default tooltip sort order   |
+
+## PanelDefaults
+
+Combined defaults for panels.
+
+_Source: `types/defaults.ts`_
+
+_Extends [FieldDefaults](#fielddefaults)_
 
 ## ScaleDistributionConfig
 

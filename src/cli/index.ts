@@ -31,6 +31,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import React from 'react';
 import { renderToString } from '../lib/renderer.js';
+import type { RenderOptions } from '../lib/renderer.js';
+import type { PanelDefaults } from '../types/defaults.js';
 
 // ============================================================================
 // CLI Helpers
@@ -56,12 +58,14 @@ Usage:
     Watch for changes and rebuild automatically.
 
 Options:
-  --help, -h     Show this help message
-  --version, -v  Show version
+  --help, -h              Show this help message
+  --version, -v           Show version
+  --defaults <file.json>  Apply panel defaults from JSON file
 
 Examples:
   grafana-react build dashboards/node.dashboard.tsx
   grafana-react build dashboards/node.dashboard.tsx output/node.json
+  grafana-react build --defaults defaults.json dashboards/node.dashboard.tsx
   grafana-react build-all dashboards/ output/
   grafana-react validate dashboards/node.dashboard.tsx
 `);
@@ -123,9 +127,10 @@ async function loadDashboard(inputFile: string): Promise<React.ReactElement> {
 async function buildOne(
   inputFile: string,
   outputFile: string | undefined,
+  options?: RenderOptions,
 ): Promise<void> {
   const element = await loadDashboard(inputFile);
-  const json = renderToString(element);
+  const json = renderToString(element, options);
 
   if (outputFile) {
     const absoluteOutput = path.resolve(outputFile);
@@ -145,6 +150,7 @@ async function buildOne(
 async function buildAll(
   inputDir: string,
   outputDir: string | undefined,
+  options?: RenderOptions,
 ): Promise<void> {
   const absoluteInput = path.resolve(inputDir);
 
@@ -170,7 +176,7 @@ async function buildAll(
 
     try {
       const element = await loadDashboard(file);
-      const json = renderToString(element);
+      const json = renderToString(element, options);
 
       const outputFileDir = path.dirname(outputPath);
       if (!fs.existsSync(outputFileDir)) {
@@ -196,6 +202,7 @@ async function validate(inputFile: string): Promise<void> {
 async function watch(
   inputDir: string,
   outputDir: string | undefined,
+  options?: RenderOptions,
 ): Promise<void> {
   const absoluteInput = path.resolve(inputDir);
   const resolvedOutputDir = outputDir ? path.resolve(outputDir) : absoluteInput;
@@ -203,7 +210,7 @@ async function watch(
   console.log(`Watching ${absoluteInput} for changes...`);
 
   // Initial build
-  await buildAll(inputDir, outputDir);
+  await buildAll(inputDir, outputDir, options);
 
   // Watch for changes
   const { watch: fsWatch } = await import('node:fs');
@@ -224,7 +231,7 @@ async function watch(
       delete require.cache?.[absolutePath];
 
       const element = await loadDashboard(filePath);
-      const json = renderToString(element);
+      const json = renderToString(element, options);
 
       const outputFileDir = path.dirname(outputPath);
       if (!fs.existsSync(outputFileDir)) {
@@ -271,6 +278,25 @@ function findDashboardFiles(dir: string): string[] {
 }
 
 // ============================================================================
+// Defaults Loading
+// ============================================================================
+
+function loadDefaults(defaultsFile: string): PanelDefaults {
+  const absolutePath = path.resolve(defaultsFile);
+
+  if (!fs.existsSync(absolutePath)) {
+    error(`Defaults file not found: ${absolutePath}`);
+  }
+
+  try {
+    const content = fs.readFileSync(absolutePath, 'utf8');
+    return JSON.parse(content) as PanelDefaults;
+  } catch (err) {
+    error(`Failed to parse defaults file: ${(err as Error).message}`);
+  }
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
@@ -287,6 +313,19 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  // Parse --defaults option
+  let renderOptions: RenderOptions | undefined;
+  const defaultsIndex = args.indexOf('--defaults');
+  if (defaultsIndex !== -1) {
+    if (!args[defaultsIndex + 1]) {
+      error('--defaults requires a file path argument');
+    }
+    const defaults = loadDefaults(args[defaultsIndex + 1]);
+    renderOptions = { defaults };
+    // Remove --defaults and its argument from args
+    args.splice(defaultsIndex, 2);
+  }
+
   const command = args[0];
 
   switch (command) {
@@ -296,7 +335,7 @@ async function main(): Promise<void> {
           'Missing input file. Usage: grafana-react build <input.tsx> [output.json]',
         );
       }
-      await buildOne(args[1], args[2]);
+      await buildOne(args[1], args[2], renderOptions);
       break;
 
     case 'build-all':
@@ -305,7 +344,7 @@ async function main(): Promise<void> {
           'Missing input directory. Usage: grafana-react build-all <input-dir> [output-dir]',
         );
       }
-      await buildAll(args[1], args[2]);
+      await buildAll(args[1], args[2], renderOptions);
       break;
 
     case 'validate':
@@ -321,13 +360,13 @@ async function main(): Promise<void> {
           'Missing input directory. Usage: grafana-react watch <input-dir> [output-dir]',
         );
       }
-      await watch(args[1], args[2]);
+      await watch(args[1], args[2], renderOptions);
       break;
 
     default:
       // Treat as build command if it's a file path
       if (args[0].endsWith('.tsx') || args[0].endsWith('.ts')) {
-        await buildOne(args[0], args[1]);
+        await buildOne(args[0], args[1], renderOptions);
       } else {
         error(`Unknown command: ${command}. Use --help for usage.`);
       }

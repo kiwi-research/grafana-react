@@ -15,6 +15,7 @@ import type {
   LineStyleConfig,
   LineStyleFill,
   ScaleDistributionConfig,
+  ValueMapping,
 } from '../types/index.js';
 import type { GrafanaThreshold } from '../types/grafana-json.js';
 
@@ -186,6 +187,7 @@ export function normalizeLegend(
     calcs: legend.calcs ?? [],
     sortBy: legend.sortBy,
     sortDesc: legend.sortDesc,
+    width: legend.width,
   };
 }
 
@@ -273,4 +275,126 @@ export function normalizeScaleDistribution(
     log: config.log,
     linearThreshold: config.linearThreshold,
   };
+}
+
+/**
+ * Grafana value mapping types (internal format)
+ */
+interface GrafanaValueMapping {
+  type: 'value' | 'range' | 'regex' | 'special';
+  options: Record<string, unknown>;
+}
+
+/**
+ * Normalize value mappings to Grafana's internal format
+ *
+ * Converts our simplified ValueMapping types to Grafana's mapping structure.
+ */
+export function normalizeValueMappings(
+  mappings: ValueMapping[] | undefined,
+): GrafanaValueMapping[] {
+  if (!mappings || mappings.length === 0) {
+    return [];
+  }
+
+  return mappings.map((mapping, index): GrafanaValueMapping => {
+    const baseOptions: Record<string, unknown> = {};
+
+    // Add result options
+    if (mapping.text !== undefined) {
+      baseOptions.result = {
+        text: mapping.text,
+        color: mapping.color,
+        index: mapping.index ?? index,
+      };
+    }
+
+    switch (mapping.type) {
+      case 'value':
+        return {
+          type: 'value',
+          options: {
+            [String(mapping.value)]: {
+              text: mapping.text,
+              color: mapping.color,
+              index: mapping.index ?? index,
+            },
+          },
+        };
+
+      case 'range':
+        return {
+          type: 'range',
+          options: {
+            from: mapping.from,
+            to: mapping.to,
+            result: {
+              text: mapping.text,
+              color: mapping.color,
+              index: mapping.index ?? index,
+            },
+          },
+        };
+
+      case 'regex':
+        return {
+          type: 'regex',
+          options: {
+            pattern: mapping.pattern,
+            result: {
+              text: mapping.text,
+              color: mapping.color,
+              index: mapping.index ?? index,
+            },
+          },
+        };
+
+      case 'special':
+        return {
+          type: 'special',
+          options: {
+            match: mapping.match,
+            result: {
+              text: mapping.text,
+              color: mapping.color,
+              index: mapping.index ?? index,
+            },
+          },
+        };
+    }
+  });
+}
+
+/**
+ * Check if a value is a plain object (not an array, null, or other type)
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Deep merge source object into target object.
+ * Arrays are replaced, not merged. Source values override target values.
+ *
+ * @param target The target object to merge into (mutated in place)
+ * @param source The source object to merge from
+ * @returns The merged target object
+ */
+export function deepMerge<T extends Record<string, unknown>>(
+  target: T,
+  source: Record<string, unknown>,
+): T {
+  for (const key of Object.keys(source)) {
+    const sourceValue = source[key];
+    const targetValue = target[key];
+
+    if (isPlainObject(sourceValue) && isPlainObject(targetValue)) {
+      // Recursively merge nested objects
+      deepMerge(targetValue, sourceValue);
+    } else {
+      // Replace value (including arrays)
+      (target as Record<string, unknown>)[key] = sourceValue;
+    }
+  }
+  return target;
 }

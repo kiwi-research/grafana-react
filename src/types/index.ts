@@ -5,7 +5,7 @@
  * Component prop types are exported from components/index.js.
  */
 
-// Display configuration types (units, thresholds, legends, colors)
+// Display configuration types (units, thresholds, legends, colors, mappings)
 export type {
   ThresholdColor,
   ThresholdStyle,
@@ -15,17 +15,38 @@ export type {
   LegendConfig,
   Unit,
   ColorMode,
+  FixedColorMode,
+  ContinuousColorMode,
+  PaletteColorMode,
+  ColorSeriesBy,
   ThresholdSpec,
   VariableSort,
+  ValueMapping,
+  ValueMappingValue,
+  ValueMappingRange,
+  ValueMappingRegex,
+  ValueMappingSpecial,
 } from './display.js';
 
 // Base panel types (shared by all panels)
 export type {
   BasePanelProps,
+  FieldConfigProps,
   OverrideConfig,
+  TableDataLink,
   TableColumnOverride,
   Transformation,
 } from './panel-base.js';
+
+// Panel defaults
+export type {
+  FieldDefaults,
+  PanelOptionDefaults,
+  PanelDefaults,
+  PanelType,
+  PanelTypeDefaults,
+  ExtendedPanelDefaults,
+} from './defaults.js';
 
 // Grafana JSON output types (the structure we generate)
 export type {

@@ -8,12 +8,7 @@
  * - Type references and defaults
  */
 
-import {
-  Project,
-  SourceFile,
-  InterfaceDeclaration,
-  SyntaxKind,
-} from 'ts-morph';
+import { Project, SourceFile, InterfaceDeclaration } from 'ts-morph';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -58,6 +53,11 @@ const COMPONENT_MAPPINGS: ComponentMapping[] = [
   {
     source: 'components/link/link.ts',
     output: 'components/_generated/structure/link.mdx',
+    category: 'structure',
+  },
+  {
+    source: 'components/defaults/defaults.ts',
+    output: 'components/_generated/structure/defaults.mdx',
     category: 'structure',
   },
 
@@ -230,16 +230,15 @@ interface TypeMapping {
 const TYPE_MAPPINGS: TypeMapping[] = [
   {
     source: 'types/panel-base.ts',
-    interfaces: [
-      'BasePanelProps',
-      'OverrideConfig',
-      'TableColumnOverride',
-      'Transformation',
-    ],
+    interfaces: ['BasePanelProps', 'TableColumnOverride', 'Transformation'],
   },
   {
     source: 'types/display.ts',
     interfaces: ['LegendConfig'],
+  },
+  {
+    source: 'types/defaults.ts',
+    interfaces: ['FieldDefaults', 'PanelOptionDefaults', 'PanelDefaults'],
   },
   {
     source: 'types/common/axis.ts',
@@ -426,7 +425,7 @@ function escapeForMdx(text: string): string {
  */
 function parseInterfaceProps(
   interfaceDecl: InterfaceDeclaration,
-  project: Project,
+  _project: Project,
 ): { props: ParsedProp[]; extendsType?: string } {
   const props: ParsedProp[] = [];
   let extendsType: string | undefined;

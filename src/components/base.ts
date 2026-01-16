@@ -16,6 +16,8 @@ export type ComponentType =
   // Structure
   | 'dashboard'
   | 'row'
+  | 'container'
+  | 'defaults'
   | 'variable'
   | 'annotation'
   | 'link'

@@ -17,6 +17,7 @@ import {
   normalizeLineStyle,
   normalizeScaleDistribution,
   nextRefId,
+  deepMerge,
 } from './utils.js';
 
 describe('parseTimeRange', () => {
@@ -159,7 +160,17 @@ describe('normalizeLegend', () => {
       calcs: ['sum'],
       sortBy: 'Mean',
       sortDesc: true,
+      width: undefined,
     });
+  });
+
+  it('passes through width for right placement', () => {
+    const result = normalizeLegend({
+      placement: 'right',
+      width: 250,
+    });
+    assert.strictEqual(result.placement, 'right');
+    assert.strictEqual(result.width, 250);
   });
 });
 
@@ -293,5 +304,115 @@ describe('normalizeScaleDistribution', () => {
     });
     assert.strictEqual(result.type, 'symlog');
     assert.strictEqual(result.linearThreshold, 1);
+  });
+});
+
+describe('deepMerge', () => {
+  it('merges flat objects', () => {
+    const target = { a: 1, b: 2 };
+    const source = { b: 3, c: 4 };
+    const result = deepMerge(target, source);
+
+    assert.deepStrictEqual(result, { a: 1, b: 3, c: 4 });
+    // Should mutate target
+    assert.strictEqual(result, target);
+  });
+
+  it('deeply merges nested objects', () => {
+    const target = {
+      outer: {
+        inner: { a: 1, b: 2 },
+        other: 'keep',
+      },
+    };
+    const source = {
+      outer: {
+        inner: { b: 3, c: 4 },
+      },
+    };
+    const result = deepMerge(target, source);
+
+    assert.deepStrictEqual(result, {
+      outer: {
+        inner: { a: 1, b: 3, c: 4 },
+        other: 'keep',
+      },
+    });
+  });
+
+  it('replaces arrays instead of merging them', () => {
+    const target = { arr: [1, 2, 3] };
+    const source = { arr: [4, 5] };
+    const result = deepMerge(target, source);
+
+    assert.deepStrictEqual(result.arr, [4, 5]);
+  });
+
+  it('handles null values in source', () => {
+    const target = { a: 1, b: { c: 2 } };
+    const source = { b: null };
+    const result = deepMerge(target, source);
+
+    assert.strictEqual(result.b, null);
+  });
+
+  it('adds new nested objects', () => {
+    const target = { existing: 'value' };
+    const source = { new: { nested: { deep: true } } };
+    const result = deepMerge(target, source);
+
+    assert.deepStrictEqual(result, {
+      existing: 'value',
+      new: { nested: { deep: true } },
+    });
+  });
+
+  it('handles empty source', () => {
+    const target = { a: 1, b: 2 };
+    const result = deepMerge(target, {});
+
+    assert.deepStrictEqual(result, { a: 1, b: 2 });
+  });
+
+  it('handles empty target', () => {
+    const target = {};
+    const source = { a: 1, b: { c: 2 } };
+    const result = deepMerge(target, source);
+
+    assert.deepStrictEqual(result, { a: 1, b: { c: 2 } });
+  });
+
+  it('works with Grafana-like structures', () => {
+    const target = {
+      fieldConfig: {
+        defaults: {
+          color: { mode: 'thresholds' },
+          unit: 'percent',
+        },
+      },
+      options: {
+        legend: { show: true },
+      },
+    };
+    const source = {
+      fieldConfig: {
+        defaults: {
+          color: { reverse: true },
+        },
+      },
+    };
+    const result = deepMerge(target, source);
+
+    assert.deepStrictEqual(result, {
+      fieldConfig: {
+        defaults: {
+          color: { mode: 'thresholds', reverse: true },
+          unit: 'percent',
+        },
+      },
+      options: {
+        legend: { show: true },
+      },
+    });
   });
 });

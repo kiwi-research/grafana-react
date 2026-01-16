@@ -18,10 +18,10 @@
 import { createComponent } from '../../../base.js';
 import type {
   BasePanelProps,
+  FieldConfigProps,
   OverrideConfig,
   Transformation,
 } from '../../../../types/panel-base.js';
-import type { Unit, ThresholdSpec } from '../../../../types/display.js';
 import type {
   VizOrientation,
   BigValueJustifyMode,
@@ -29,27 +29,21 @@ import type {
   ReduceDataOptions,
 } from '../../../../types/common/index.js';
 
-export interface StatProps extends BasePanelProps {
-  /** Display unit */
-  unit?: Unit;
-  /** Decimal places */
-  decimals?: number;
-  /** Threshold configuration */
-  thresholds?: ThresholdSpec;
-  /** Base threshold color (default: 'green') */
-  baseColor?: 'green' | 'transparent' | 'text' | string;
+export interface StatProps extends BasePanelProps, FieldConfigProps {
   /** Color mode for stat value */
   colorMode?: 'value' | 'background' | 'background_solid' | 'none';
   /** Show sparkline graph */
   graphMode?: 'area' | 'line' | 'none';
   /** Text display mode */
   textMode?: 'value' | 'name' | 'value_and_name' | 'none' | 'auto';
-  /** Value to show when no data */
-  noValue?: string;
   /** Field overrides for series-specific styling */
   overrides?: OverrideConfig[];
   /** Data transformations */
   transformations?: Transformation[];
+  /** Minimum value for sparkline Y-axis */
+  min?: number;
+  /** Maximum value for sparkline Y-axis */
+  max?: number;
 
   // New Grafana-aligned options
 

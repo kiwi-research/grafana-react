@@ -30,10 +30,10 @@
 import { createComponent } from '../../../base.js';
 import type {
   BasePanelProps,
+  FieldConfigProps,
   OverrideConfig,
   Transformation,
 } from '../../../../types/panel-base.js';
-import type { Unit, ThresholdSpec } from '../../../../types/display.js';
 import type {
   VizOrientation,
   BarGaugeSizing,
@@ -41,17 +41,11 @@ import type {
   TextFormattingOptions,
 } from '../../../../types/common/index.js';
 
-export interface GaugeProps extends BasePanelProps {
-  /** Display unit */
-  unit?: Unit;
-  /** Decimal places */
-  decimals?: number;
+export interface GaugeProps extends BasePanelProps, FieldConfigProps {
   /** Minimum value */
   min?: number;
   /** Maximum value */
   max?: number;
-  /** Threshold configuration */
-  thresholds?: ThresholdSpec;
   /** Show threshold labels on gauge */
   showThresholdLabels?: boolean;
   /** Show threshold markers on gauge */

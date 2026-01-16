@@ -25,21 +25,13 @@
 import { createComponent } from '../../../base.js';
 import type {
   BasePanelProps,
+  FieldConfigProps,
   Transformation,
   TableColumnOverride,
 } from '../../../../types/panel-base.js';
-import type { Unit, ThresholdSpec } from '../../../../types/display.js';
 import type { TableCellHeight } from '../../../../types/common/index.js';
 
-export interface TableProps extends BasePanelProps {
-  /** Display unit for all columns */
-  unit?: Unit;
-  /** Decimal places */
-  decimals?: number;
-  /** Threshold configuration */
-  thresholds?: ThresholdSpec;
-  /** Base threshold color (default: 'green') */
-  baseColor?: 'green' | 'transparent' | 'text' | string;
+export interface TableProps extends BasePanelProps, FieldConfigProps {
   /** Sort configuration */
   sortBy?: { field: string; desc?: boolean };
   /** Data transformations */

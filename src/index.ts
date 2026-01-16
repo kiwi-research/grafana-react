@@ -34,6 +34,8 @@ export {
   // Structure
   Dashboard,
   Row,
+  Container,
+  Defaults,
   Variable,
   Annotation,
   Link,
@@ -82,6 +84,8 @@ export {
   // Prop types
   type DashboardProps,
   type RowProps,
+  type ContainerProps,
+  type DefaultsProps,
   type VariableProps,
   type AnnotationProps,
   type LinkProps,
@@ -120,7 +124,7 @@ export {
 } from './components/index.js';
 
 // Renderer
-export { render, renderToString } from './lib/index.js';
+export { render, renderToString, type RenderOptions } from './lib/index.js';
 
 // Shared types
 export type {
@@ -133,13 +137,28 @@ export type {
   LegendConfig,
   Unit,
   ColorMode,
+  FixedColorMode,
+  ContinuousColorMode,
+  PaletteColorMode,
+  ColorSeriesBy,
   ThresholdSpec,
   VariableSort,
+  ValueMapping,
+  ValueMappingValue,
+  ValueMappingRange,
+  ValueMappingRegex,
+  ValueMappingSpecial,
   // Base panel types
   BasePanelProps,
+  FieldConfigProps,
   OverrideConfig,
   TableColumnOverride,
   Transformation,
+  // Panel defaults
+  FieldDefaults,
+  PanelOptionDefaults,
+  PanelDefaults,
+  ExtendedPanelDefaults,
   // Grafana output types
   GrafanaDashboard,
   GrafanaPanel,

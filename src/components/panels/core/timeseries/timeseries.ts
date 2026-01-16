@@ -31,12 +31,11 @@
 import { createComponent } from '../../../base.js';
 import type {
   BasePanelProps,
+  FieldConfigProps,
   OverrideConfig,
   Transformation,
 } from '../../../../types/panel-base.js';
 import type {
-  Unit,
-  ThresholdSpec,
   ThresholdStyle,
   LegendConfig,
   LegendPlacement,
@@ -56,11 +55,7 @@ import type {
   LineInterpolation,
 } from '../../../../types/common/index.js';
 
-export interface TimeseriesProps extends BasePanelProps {
-  /** Display unit */
-  unit?: Unit;
-  /** Decimal places */
-  decimals?: number;
+export interface TimeseriesProps extends BasePanelProps, FieldConfigProps {
   /** Minimum axis value */
   min?: number;
   /** Maximum axis value */
@@ -69,10 +64,6 @@ export interface TimeseriesProps extends BasePanelProps {
   softMin?: number;
   /** Soft maximum (can be exceeded by data) */
   softMax?: number;
-  /** Threshold configuration */
-  thresholds?: ThresholdSpec;
-  /** Base threshold color (default: 'green') */
-  baseColor?: 'green' | 'transparent' | 'text' | string;
   /** Threshold display style */
   thresholdStyle?: ThresholdStyle;
   /** Stacking mode */

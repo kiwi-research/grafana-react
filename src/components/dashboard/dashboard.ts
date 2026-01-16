@@ -1,14 +1,24 @@
 /**
  * Dashboard - Root container for Grafana dashboards
  *
- * @example
+ * @example Basic dashboard
  * <Dashboard uid="my-dashboard" title="My Dashboard" tags={['tag1']}>
  *   <Variable name="instance" />
  *   <Row title="Summary">...</Row>
  * </Dashboard>
+ *
+ * @example With panel defaults
+ * <Dashboard
+ *   uid="my-dashboard"
+ *   title="My Dashboard"
+ *   defaults={{ colorMode: 'continuous-BlPu', axisBorderShow: true }}
+ * >
+ *   <Timeseries title="Panel 1" />
+ * </Dashboard>
  */
 
 import type { ReactNode } from 'react';
+import type { PanelDefaults } from '../../types/defaults.js';
 import { createComponent } from '../base.js';
 
 export interface DashboardProps {
@@ -30,6 +40,12 @@ export interface DashboardProps {
   timezone?: 'browser' | 'utc';
   /** Tooltip sharing mode */
   tooltip?: 'shared' | 'single' | 'hidden';
+  /**
+   * Default panel configuration applied to all panels.
+   * Individual panel props override these defaults.
+   * Equivalent to wrapping children in `<Defaults {...defaults}>`
+   */
+  defaults?: PanelDefaults;
   /** Dashboard children */
   children?: ReactNode;
 }

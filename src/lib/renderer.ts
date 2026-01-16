@@ -9,6 +9,8 @@ import {
   getComponentType,
   type DashboardProps,
   type RowProps,
+  type ContainerProps,
+  type DefaultsProps,
   type VariableProps,
   type AnnotationProps,
   type LinkProps,
@@ -48,6 +50,11 @@ import {
   type BusinessVariablePanelProps,
 } from '../components/index.js';
 import type {
+  PanelDefaults,
+  ExtendedPanelDefaults,
+  PanelType,
+} from '../types/defaults.js';
+import type {
   GrafanaDashboard,
   GrafanaPanel,
   GrafanaTarget,
@@ -56,6 +63,7 @@ import type {
   GrafanaLink,
   GrafanaOverride,
 } from '../types/grafana-json.js';
+import type { BasePanelProps } from '../types/index.js';
 import {
   getChildren,
   extractTextContent,
@@ -69,7 +77,9 @@ import {
   normalizeReduceOptions,
   normalizeLineStyle,
   normalizeScaleDistribution,
+  normalizeValueMappings,
   nextRefId,
+  deepMerge,
 } from './utils.js';
 
 // ============================================================================
@@ -88,11 +98,14 @@ interface RenderContext {
   annotations: GrafanaAnnotation[];
   links: GrafanaLink[];
   panels: GrafanaPanel[];
+  /** Stack of defaults - later entries override earlier ones */
+  defaultsStack: ExtendedPanelDefaults[];
 }
 
 function createContext(
   datasourceUid?: string,
   datasourceType: string = 'prometheus',
+  defaults?: ExtendedPanelDefaults,
 ): RenderContext {
   return {
     datasource: datasourceUid
@@ -108,7 +121,49 @@ function createContext(
     annotations: [],
     links: [],
     panels: [],
+    defaultsStack: defaults ? [defaults] : [],
   };
+}
+
+/**
+ * Get the current merged defaults from the defaults stack for a specific panel type.
+ * Later defaults in the stack override earlier ones.
+ * Per-panel-type overrides are applied last, with null values removing the default.
+ */
+function getCurrentDefaults(
+  ctx: RenderContext,
+  panelType?: PanelType,
+): PanelDefaults {
+  // Start with merged global defaults from stack
+  const merged: PanelDefaults = {};
+
+  for (const defaults of ctx.defaultsStack) {
+    // Apply global defaults (excluding 'panels' key)
+    for (const [key, value] of Object.entries(defaults)) {
+      if (key !== 'panels' && value !== undefined) {
+        (merged as Record<string, unknown>)[key] = value;
+      }
+    }
+  }
+
+  // Apply per-panel-type overrides if panel type specified
+  if (panelType) {
+    for (const defaults of ctx.defaultsStack) {
+      const panelOverrides = defaults.panels?.[panelType];
+      if (panelOverrides) {
+        for (const [key, value] of Object.entries(panelOverrides)) {
+          if (value === null) {
+            // null means explicitly unset this default
+            delete (merged as Record<string, unknown>)[key];
+          } else if (value !== undefined) {
+            (merged as Record<string, unknown>)[key] = value;
+          }
+        }
+      }
+    }
+  }
+
+  return merged;
 }
 
 // ============================================================================
@@ -172,8 +227,7 @@ function buildBasePanel(
     datasource?: string;
     width?: number;
     height?: number;
-    x?: number;
-    y?: number;
+    marginLeft?: number;
     repeat?: string;
     repeatDirection?: 'v' | 'h';
   },
@@ -182,29 +236,22 @@ function buildBasePanel(
   const id = ctx.panelId++;
   const width = props.width ?? 12;
   const height = props.height ?? 8;
-
-  // If explicit position given, use it
-  // Otherwise, calculate based on current position
-  let x: number;
-  let y: number;
+  const marginLeft = props.marginLeft ?? 0;
 
   // Calculate available width accounting for padding
   const availableWidth = 24 - ctx.rowPaddingLeft - ctx.rowPaddingRight;
 
-  if (props.x !== undefined && props.y !== undefined) {
-    x = props.x;
-    y = props.y;
-  } else {
-    // Check if panel fits on current row (accounting for padding)
-    const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
-    if (effectiveX + width > availableWidth) {
-      // Wrap to next row
-      ctx.currentX = ctx.rowPaddingLeft;
-      ctx.currentY = ctx.rowMaxY;
-    }
-    x = ctx.currentX;
-    y = ctx.currentY;
+  // Check if panel (with margin) fits on current row
+  const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
+  if (effectiveX + marginLeft + width > availableWidth) {
+    // Wrap to next row
+    ctx.currentX = ctx.rowPaddingLeft;
+    ctx.currentY = ctx.rowMaxY;
   }
+
+  // Position panel with margin
+  const x = ctx.currentX + marginLeft;
+  const y = ctx.currentY;
 
   const targets = extractTargets(ctx, children, props);
 
@@ -237,6 +284,7 @@ function buildStatPanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'stat', props, children);
+  const defaults = getCurrentDefaults(ctx, 'stat');
   const baseColor = props.baseColor ?? 'green';
 
   // Build overrides from props
@@ -244,10 +292,21 @@ function buildStatPanel(
     ? buildOverrides(props.overrides, baseColor)
     : [];
 
+  // Determine color configuration:
+  // - If baseColor is explicitly set and no thresholds defined, use fixed color mode
+  // - Otherwise use thresholds mode (the default Grafana behavior)
+  // - If defaults.colorMode is set and not using fixed color, apply it
+  const useFixedColor =
+    props.baseColor !== undefined && props.thresholds === undefined;
+  const colorMode = defaults.colorMode ?? 'thresholds';
+  const colorConfig: { mode: string; fixedColor?: string } = useFixedColor
+    ? { mode: 'fixed', fixedColor: baseColor }
+    : { mode: colorMode };
+
   panel.fieldConfig = {
     defaults: {
-      color: { mode: 'thresholds' },
-      mappings: [],
+      color: colorConfig,
+      mappings: normalizeValueMappings(props.valueMappings),
       thresholds: {
         mode: 'absolute',
         steps: normalizeThresholds(props.thresholds, baseColor),
@@ -255,6 +314,8 @@ function buildStatPanel(
       unit: props.unit,
       decimals: props.decimals,
       noValue: props.noValue,
+      min: props.min,
+      max: props.max,
     },
     overrides,
   };
@@ -285,22 +346,33 @@ function buildOverrides(
     fieldName?: string;
     fieldRegex?: string;
     color?: string;
-    colorMode?: 'shades' | 'fixed';
+    colorMode?: string;
+    seriesBy?: 'last' | 'min' | 'max';
     displayName?: string;
     thresholds?: unknown;
+    extend?: Record<string, unknown>;
   }>,
   baseColor: string,
 ): GrafanaOverride[] {
   const overrides: GrafanaOverride[] = [];
   for (const override of configs) {
     const properties: { id: string; value: unknown }[] = [];
-    if (override.color) {
+    // Build color property if color or colorMode is specified
+    if (override.color || override.colorMode) {
+      const colorValue: Record<string, unknown> = {
+        mode: override.colorMode ?? 'fixed',
+      };
+      // Only include fixedColor for modes that use it (fixed, shades)
+      if (override.color) {
+        colorValue.fixedColor = override.color;
+      }
+      // Include seriesBy for continuous color modes
+      if (override.seriesBy) {
+        colorValue.seriesBy = override.seriesBy;
+      }
       properties.push({
         id: 'color',
-        value: {
-          fixedColor: override.color,
-          mode: override.colorMode ?? 'fixed',
-        },
+        value: colorValue,
       });
     }
     if (override.displayName) {
@@ -318,6 +390,31 @@ function buildOverrides(
         },
       });
     }
+
+    // Process extend - merge into existing properties or add new ones
+    if (override.extend) {
+      for (const [propId, extendValue] of Object.entries(override.extend)) {
+        const existingProp = properties.find((p) => p.id === propId);
+        if (
+          existingProp &&
+          typeof existingProp.value === 'object' &&
+          existingProp.value !== null
+        ) {
+          // Merge into existing property value
+          deepMerge(
+            existingProp.value as Record<string, unknown>,
+            extendValue as Record<string, unknown>,
+          );
+        } else if (existingProp) {
+          // Replace primitive value
+          existingProp.value = extendValue;
+        } else {
+          // Add as new property
+          properties.push({ id: propId, value: extendValue });
+        }
+      }
+    }
+
     if (properties.length > 0) {
       // Determine the matcher type
       let matcher: { id: string; options: string };
@@ -342,7 +439,10 @@ function buildTimeseriesPanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'timeseries', props, children);
-  const legend = normalizeLegend(props.legend);
+  const defaults = getCurrentDefaults(ctx, 'timeseries');
+  const legendProp =
+    props.legend ?? (defaults.legend === false ? false : defaults.legend);
+  const legend = normalizeLegend(legendProp === false ? undefined : legendProp);
   const tooltip = normalizeTooltip(props.tooltip);
   const stackMode = props.stack === true ? 'normal' : props.stack || 'none';
   const baseColor = props.baseColor ?? 'green';
@@ -356,37 +456,43 @@ function buildTimeseriesPanel(
 
   panel.fieldConfig = {
     defaults: {
-      color: { mode: props.colorMode ?? 'palette-classic' },
+      color: {
+        mode: props.colorMode ?? defaults.colorMode ?? 'palette-classic',
+      },
       custom: {
-        axisBorderShow: props.axisBorderShow ?? false,
+        axisBorderShow:
+          props.axisBorderShow ?? defaults.axisBorderShow ?? false,
         axisCenteredZero: props.centerZero ?? false,
-        axisColorMode: props.axisColorMode ?? 'text',
-        axisGridShow: props.axisGridShow,
+        axisColorMode: props.axisColorMode ?? defaults.axisColorMode ?? 'text',
+        axisGridShow: props.axisGridShow ?? defaults.axisGridShow,
         axisLabel: props.axisLabel ?? '',
-        axisPlacement: props.axisPlacement ?? 'auto',
+        axisPlacement: props.axisPlacement ?? defaults.axisPlacement ?? 'auto',
         axisSoftMin: props.softMin,
         axisSoftMax: props.softMax,
         axisWidth: props.axisWidth,
         barAlignment: props.barAlignment,
         barMaxWidth: props.barMaxWidth,
         drawStyle: props.drawStyle,
-        fillOpacity: props.fill,
-        gradientMode: props.gradientMode,
+        fillOpacity: props.fill ?? defaults.fill,
+        gradientMode: props.gradientMode ?? defaults.gradientMode,
         hideFrom: { legend: false, tooltip: false, viz: false },
         lineInterpolation: props.lineInterpolation,
         lineStyle,
-        lineWidth: props.lineWidth,
-        pointSize: props.pointSize,
+        lineWidth: props.lineWidth ?? defaults.lineWidth,
+        pointSize: props.pointSize ?? defaults.pointSize,
         scaleDistribution,
-        showPoints: props.showPoints ?? 'auto',
+        showPoints: props.showPoints ?? defaults.showPoints ?? 'auto',
         spanNulls: props.spanNulls,
         stacking: { group: 'A', mode: stackMode },
-        thresholdsStyle: { mode: props.thresholdStyle ?? 'off' },
+        thresholdsStyle: {
+          mode: props.thresholdStyle ?? defaults.thresholdStyle ?? 'off',
+        },
       },
       decimals: props.decimals,
-      mappings: [],
+      mappings: normalizeValueMappings(props.valueMappings),
       min: props.min,
       max: props.max,
+      noValue: props.noValue,
       thresholds: {
         mode: 'absolute',
         steps: normalizeThresholds(props.thresholds, baseColor),
@@ -396,6 +502,14 @@ function buildTimeseriesPanel(
     overrides,
   };
 
+  // Build tooltip options with defaults
+  const tooltipMode = props.tooltip
+    ? tooltip.mode
+    : (defaults.tooltipMode ?? tooltip.mode);
+  const tooltipSort = props.tooltip
+    ? tooltip.sort
+    : (defaults.tooltipSort ?? tooltip.sort);
+
   panel.options = {
     legend: {
       calcs: legend.calcs,
@@ -404,10 +518,11 @@ function buildTimeseriesPanel(
       showLegend: legend.displayMode !== 'hidden',
       sortBy: legend.sortBy,
       sortDesc: legend.sortDesc,
+      width: legend.width,
     },
     tooltip: {
-      mode: tooltip.mode,
-      sort: tooltip.sort,
+      mode: tooltipMode,
+      sort: tooltipSort,
       maxHeight: tooltip.maxHeight,
       maxWidth: tooltip.maxWidth,
     },
@@ -427,6 +542,7 @@ function buildBarGaugePanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'bargauge', props, children);
+  const defaults = getCurrentDefaults(ctx, 'bargauge');
 
   // Build overrides from props
   const overrides = props.overrides
@@ -444,15 +560,22 @@ function buildBarGaugePanel(
     orientation = props.orientation;
   }
 
+  // Determine color mode - BarGauge typically uses thresholds but can use other modes
+  const colorMode = defaults.colorMode ?? 'thresholds';
+
   panel.fieldConfig = {
     defaults: {
-      color: { mode: 'thresholds' },
-      mappings: [],
+      color: { mode: colorMode },
+      mappings: normalizeValueMappings(props.valueMappings),
       min: props.min,
       max: props.max,
+      noValue: props.noValue,
       thresholds: {
         mode: 'absolute',
-        steps: normalizeThresholds(props.thresholds),
+        steps: normalizeThresholds(
+          props.thresholds,
+          props.baseColor ?? 'green',
+        ),
       },
       unit: props.unit,
       decimals: props.decimals,
@@ -522,21 +645,29 @@ function buildGaugePanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'gauge', props, children);
+  const defaults = getCurrentDefaults(ctx, 'gauge');
 
   // Build overrides from props
   const overrides = props.overrides
     ? buildOverrides(props.overrides, 'green')
     : [];
 
+  // Determine color mode - Gauge typically uses thresholds but can use other modes
+  const colorMode = defaults.colorMode ?? 'thresholds';
+
   panel.fieldConfig = {
     defaults: {
-      color: { mode: 'thresholds' },
-      mappings: [],
+      color: { mode: colorMode },
+      mappings: normalizeValueMappings(props.valueMappings),
       min: props.min,
       max: props.max,
+      noValue: props.noValue,
       thresholds: {
         mode: 'absolute',
-        steps: normalizeThresholds(props.thresholds),
+        steps: normalizeThresholds(
+          props.thresholds,
+          props.baseColor ?? 'green',
+        ),
       },
       unit: props.unit,
       decimals: props.decimals,
@@ -569,6 +700,7 @@ function buildTablePanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'table', props, children);
+  const defaults = getCurrentDefaults(ctx, 'table');
   const baseColor = props.baseColor ?? 'green';
 
   // Set format to table for targets
@@ -591,6 +723,54 @@ function buildTablePanel(
       if (col.width !== undefined) {
         properties.push({ id: 'custom.width', value: col.width });
       }
+      if (col.displayName) {
+        properties.push({ id: 'displayName', value: col.displayName });
+      }
+      if (col.decimals !== undefined) {
+        properties.push({ id: 'decimals', value: col.decimals });
+      }
+      if (col.link) {
+        properties.push({
+          id: 'links',
+          value: [
+            {
+              title: col.link.title ?? '',
+              url: col.link.url,
+              targetBlank: col.link.targetBlank ?? false,
+            },
+          ],
+        });
+      }
+      if (col.cellMode && col.cellMode !== 'auto') {
+        const cellOptions: Record<string, unknown> = { type: col.cellMode };
+        if (
+          col.cellMode === 'gauge' ||
+          col.cellMode === 'lcd-gauge' ||
+          col.cellMode === 'basic-gauge'
+        ) {
+          if (col.min !== undefined) cellOptions.min = col.min;
+          if (col.max !== undefined) cellOptions.max = col.max;
+          if (col.gaugeMode) cellOptions.mode = col.gaugeMode;
+        }
+        properties.push({ id: 'custom.cellOptions', value: cellOptions });
+      }
+      // min/max as field-level properties (needed for gauge fill calculation)
+      if (col.min !== undefined) {
+        properties.push({ id: 'min', value: col.min });
+      }
+      if (col.max !== undefined) {
+        properties.push({ id: 'max', value: col.max });
+      }
+      // Per-column thresholds override
+      if (col.thresholds) {
+        properties.push({
+          id: 'thresholds',
+          value: {
+            mode: 'absolute',
+            steps: normalizeThresholds(col.thresholds, 'green'),
+          },
+        });
+      }
       if (properties.length > 0) {
         overrides.push({
           matcher: { id: 'byName', options: col.name },
@@ -600,16 +780,21 @@ function buildTablePanel(
     }
   }
 
+  // Determine color mode - Table typically uses thresholds but can use other modes
+  const colorMode = defaults.colorMode ?? 'thresholds';
+
   panel.fieldConfig = {
     defaults: {
-      color: { mode: 'thresholds' },
+      color: { mode: colorMode },
       custom: { align: 'auto', cellOptions: { type: 'auto' }, inspect: false },
       decimals: props.decimals,
-      mappings: [],
+      mappings: normalizeValueMappings(props.valueMappings),
+      noValue: props.noValue,
       thresholds: {
         mode: 'absolute',
         steps: normalizeThresholds(props.thresholds, baseColor),
       },
+      unit: props.unit,
     },
     overrides,
   };
@@ -671,6 +856,7 @@ function buildBarChartPanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'barchart', props, children);
+  const defaults = getCurrentDefaults(ctx, 'barchart');
   const legend = normalizeLegend(props.legend);
   const baseColor = 'green';
 
@@ -680,7 +866,9 @@ function buildBarChartPanel(
 
   panel.fieldConfig = {
     defaults: {
-      color: { mode: props.colorMode ?? 'palette-classic' },
+      color: {
+        mode: props.colorMode ?? defaults.colorMode ?? 'palette-classic',
+      },
       custom: {
         axisBorderShow: false,
         axisColorMode: 'text',
@@ -730,10 +918,13 @@ function buildPieChartPanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'piechart', props, children);
+  const defaults = getCurrentDefaults(ctx, 'piechart');
 
   panel.fieldConfig = {
     defaults: {
-      color: { mode: props.colorMode ?? 'palette-classic' },
+      color: {
+        mode: props.colorMode ?? defaults.colorMode ?? 'palette-classic',
+      },
       decimals: props.decimals,
       mappings: [],
       unit: props.unit,
@@ -811,12 +1002,13 @@ function buildStateTimelinePanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'state-timeline', props, children);
+  const defaults = getCurrentDefaults(ctx, 'state-timeline');
   const legend = normalizeLegend(props.legend);
   const baseColor = 'green';
 
   panel.fieldConfig = {
     defaults: {
-      color: { mode: props.colorMode ?? 'thresholds' },
+      color: { mode: props.colorMode ?? defaults.colorMode ?? 'thresholds' },
       custom: {
         fillOpacity: props.fill,
         hideFrom: { legend: false, tooltip: false, viz: false },
@@ -854,12 +1046,13 @@ function buildStatusHistoryPanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'status-history', props, children);
+  const defaults = getCurrentDefaults(ctx, 'status-history');
   const legend = normalizeLegend(props.legend);
   const baseColor = 'green';
 
   panel.fieldConfig = {
     defaults: {
-      color: { mode: props.colorMode ?? 'thresholds' },
+      color: { mode: props.colorMode ?? defaults.colorMode ?? 'thresholds' },
       custom: {
         fillOpacity: props.fill,
         hideFrom: { legend: false, tooltip: false, viz: false },
@@ -945,11 +1138,14 @@ function buildTrendPanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'trend', props, children);
+  const defaults = getCurrentDefaults(ctx, 'trend');
   const legend = normalizeLegend(props.legend);
 
   panel.fieldConfig = {
     defaults: {
-      color: { mode: props.colorMode ?? 'palette-classic' },
+      color: {
+        mode: props.colorMode ?? defaults.colorMode ?? 'palette-classic',
+      },
       custom: {
         axisBorderShow: false,
         axisColorMode: 'text',
@@ -993,11 +1189,14 @@ function buildXYChartPanel(
   children: React.ReactNode[],
 ): GrafanaPanel {
   const panel = buildBasePanel(ctx, 'xychart', props, children);
+  const defaults = getCurrentDefaults(ctx, 'xychart');
   const legend = normalizeLegend(props.legend);
 
   panel.fieldConfig = {
     defaults: {
-      color: { mode: props.colorMode ?? 'palette-classic' },
+      color: {
+        mode: props.colorMode ?? defaults.colorMode ?? 'palette-classic',
+      },
       custom: {
         hideFrom: { legend: false, tooltip: false, viz: false },
       },
@@ -1217,23 +1416,18 @@ function buildDashboardListPanel(
   const id = ctx.panelId++;
   const width = props.width ?? 12;
   const height = props.height ?? 8;
+  const marginLeft = props.marginLeft ?? 0;
 
   const availableWidth = 24 - ctx.rowPaddingLeft - ctx.rowPaddingRight;
-  let x: number;
-  let y: number;
 
-  if (props.x !== undefined && props.y !== undefined) {
-    x = props.x;
-    y = props.y;
-  } else {
-    const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
-    if (effectiveX + width > availableWidth) {
-      ctx.currentX = ctx.rowPaddingLeft;
-      ctx.currentY = ctx.rowMaxY;
-    }
-    x = ctx.currentX;
-    y = ctx.currentY;
+  const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
+  if (effectiveX + marginLeft + width > availableWidth) {
+    ctx.currentX = ctx.rowPaddingLeft;
+    ctx.currentY = ctx.rowMaxY;
   }
+
+  const x = ctx.currentX + marginLeft;
+  const y = ctx.currentY;
 
   return {
     id,
@@ -1263,23 +1457,18 @@ function buildAlertListPanel(
   const id = ctx.panelId++;
   const width = props.width ?? 12;
   const height = props.height ?? 8;
+  const marginLeft = props.marginLeft ?? 0;
 
   const availableWidth = 24 - ctx.rowPaddingLeft - ctx.rowPaddingRight;
-  let x: number;
-  let y: number;
 
-  if (props.x !== undefined && props.y !== undefined) {
-    x = props.x;
-    y = props.y;
-  } else {
-    const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
-    if (effectiveX + width > availableWidth) {
-      ctx.currentX = ctx.rowPaddingLeft;
-      ctx.currentY = ctx.rowMaxY;
-    }
-    x = ctx.currentX;
-    y = ctx.currentY;
+  const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
+  if (effectiveX + marginLeft + width > availableWidth) {
+    ctx.currentX = ctx.rowPaddingLeft;
+    ctx.currentY = ctx.rowMaxY;
   }
+
+  const x = ctx.currentX + marginLeft;
+  const y = ctx.currentY;
 
   return {
     id,
@@ -1320,23 +1509,18 @@ function buildAnnotationsListPanel(
   const id = ctx.panelId++;
   const width = props.width ?? 12;
   const height = props.height ?? 8;
+  const marginLeft = props.marginLeft ?? 0;
 
   const availableWidth = 24 - ctx.rowPaddingLeft - ctx.rowPaddingRight;
-  let x: number;
-  let y: number;
 
-  if (props.x !== undefined && props.y !== undefined) {
-    x = props.x;
-    y = props.y;
-  } else {
-    const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
-    if (effectiveX + width > availableWidth) {
-      ctx.currentX = ctx.rowPaddingLeft;
-      ctx.currentY = ctx.rowMaxY;
-    }
-    x = ctx.currentX;
-    y = ctx.currentY;
+  const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
+  if (effectiveX + marginLeft + width > availableWidth) {
+    ctx.currentX = ctx.rowPaddingLeft;
+    ctx.currentY = ctx.rowMaxY;
   }
+
+  const x = ctx.currentX + marginLeft;
+  const y = ctx.currentY;
 
   return {
     id,
@@ -1363,23 +1547,18 @@ function buildNewsPanel(ctx: RenderContext, props: NewsProps): GrafanaPanel {
   const id = ctx.panelId++;
   const width = props.width ?? 12;
   const height = props.height ?? 8;
+  const marginLeft = props.marginLeft ?? 0;
 
   const availableWidth = 24 - ctx.rowPaddingLeft - ctx.rowPaddingRight;
-  let x: number;
-  let y: number;
 
-  if (props.x !== undefined && props.y !== undefined) {
-    x = props.x;
-    y = props.y;
-  } else {
-    const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
-    if (effectiveX + width > availableWidth) {
-      ctx.currentX = ctx.rowPaddingLeft;
-      ctx.currentY = ctx.rowMaxY;
-    }
-    x = ctx.currentX;
-    y = ctx.currentY;
+  const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
+  if (effectiveX + marginLeft + width > availableWidth) {
+    ctx.currentX = ctx.rowPaddingLeft;
+    ctx.currentY = ctx.rowMaxY;
   }
+
+  const x = ctx.currentX + marginLeft;
+  const y = ctx.currentY;
 
   return {
     id,
@@ -1423,25 +1602,19 @@ function buildBusinessVariablePanel(
   const id = ctx.panelId++;
   const width = props.width ?? 6;
   const height = props.height ?? 2;
+  const marginLeft = props.marginLeft ?? 0;
 
   // Calculate position
   const availableWidth = 24 - ctx.rowPaddingLeft - ctx.rowPaddingRight;
-  let x: number;
-  let y: number;
 
-  if (props.x !== undefined) {
-    // Use explicit x position
-    x = props.x;
-    y = props.y ?? ctx.currentY;
-  } else {
-    const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
-    if (effectiveX + width > availableWidth) {
-      ctx.currentX = ctx.rowPaddingLeft;
-      ctx.currentY = ctx.rowMaxY;
-    }
-    x = ctx.currentX;
-    y = ctx.currentY;
+  const effectiveX = ctx.currentX - ctx.rowPaddingLeft;
+  if (effectiveX + marginLeft + width > availableWidth) {
+    ctx.currentX = ctx.rowPaddingLeft;
+    ctx.currentY = ctx.rowMaxY;
   }
+
+  const x = ctx.currentX + marginLeft;
+  const y = ctx.currentY;
 
   // Strip $ prefix from variable if present
   const variable = props.variable.replace(/^\$/, '');
@@ -1637,10 +1810,78 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
       break;
     }
 
+    case 'container': {
+      const containerProps = props as ContainerProps;
+
+      // Calculate container width
+      let containerWidth: number;
+      if (containerProps.fill) {
+        // Fill remaining width (accounting for row padding)
+        const availableWidth = 24 - ctx.rowPaddingRight;
+        containerWidth = availableWidth - ctx.currentX;
+      } else if (containerProps.width !== undefined) {
+        containerWidth = containerProps.width;
+      } else {
+        throw new Error('Container must have either width or fill prop');
+      }
+
+      // Container's position in the grid
+      const containerX = ctx.currentX;
+      const containerY = ctx.currentY;
+
+      // Track panels added by children so we can translate their positions
+      const panelCountBefore = ctx.panels.length;
+
+      // Create sub-context for container layout
+      // Children will be positioned relative to (0, 0) within the container
+      const savedCurrentX = ctx.currentX;
+      const savedCurrentY = ctx.currentY;
+      const savedRowMaxY = ctx.rowMaxY;
+      const savedRowPaddingLeft = ctx.rowPaddingLeft;
+      const savedRowPaddingRight = ctx.rowPaddingRight;
+
+      // Reset position for container-relative layout
+      ctx.currentX = 0;
+      ctx.currentY = 0;
+      ctx.rowMaxY = 0;
+      ctx.rowPaddingLeft = 0;
+      ctx.rowPaddingRight = 24 - containerWidth; // Constrain to container width
+
+      // Process children within container
+      for (const child of children) {
+        if (React.isValidElement(child)) {
+          processElement(child, ctx);
+        }
+      }
+
+      // Calculate container height from children
+      const containerHeight = ctx.rowMaxY;
+
+      // Translate child panel positions to absolute grid coordinates
+      for (let i = panelCountBefore; i < ctx.panels.length; i++) {
+        const panel = ctx.panels[i];
+        // Validate panel fits within container
+        if (panel.gridPos.w > containerWidth) {
+          throw new Error(
+            `Panel "${panel.title}" has width ${panel.gridPos.w} which exceeds container width ${containerWidth}`,
+          );
+        }
+        panel.gridPos.x += containerX;
+        panel.gridPos.y += containerY;
+      }
+
+      // Restore context and update position after container
+      ctx.currentX = savedCurrentX + containerWidth;
+      ctx.currentY = savedCurrentY;
+      ctx.rowMaxY = Math.max(savedRowMaxY, containerY + containerHeight);
+      ctx.rowPaddingLeft = savedRowPaddingLeft;
+      ctx.rowPaddingRight = savedRowPaddingRight;
+      break;
+    }
+
     case 'stat': {
       const panel = buildStatPanel(ctx, props as StatProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as StatProps);
       break;
     }
 
@@ -1650,65 +1891,56 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
         props as TimeseriesProps,
         children,
       );
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as TimeseriesProps);
       break;
     }
 
     case 'bargauge': {
       const panel = buildBarGaugePanel(ctx, props as BarGaugeProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as BarGaugeProps);
       break;
     }
 
     case 'heatmap': {
       const panel = buildHeatmapPanel(ctx, props as HeatmapProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as HeatmapProps);
       break;
     }
 
     case 'gauge': {
       const panel = buildGaugePanel(ctx, props as GaugeProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as GaugeProps);
       break;
     }
 
     case 'table': {
       const panel = buildTablePanel(ctx, props as TableProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as TableProps);
       break;
     }
 
     case 'text': {
       const panel = buildTextPanel(ctx, props as TextProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as TextProps);
       break;
     }
 
     // Chart panels
     case 'barchart': {
       const panel = buildBarChartPanel(ctx, props as BarChartProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as BarChartProps);
       break;
     }
 
     case 'piechart': {
       const panel = buildPieChartPanel(ctx, props as PieChartProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as PieChartProps);
       break;
     }
 
     case 'histogram': {
       const panel = buildHistogramPanel(ctx, props as HistogramProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as HistogramProps);
       break;
     }
 
@@ -1718,8 +1950,7 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
         props as StateTimelineProps,
         children,
       );
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as StateTimelineProps);
       break;
     }
 
@@ -1729,8 +1960,7 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
         props as StatusHistoryProps,
         children,
       );
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as StatusHistoryProps);
       break;
     }
 
@@ -1740,52 +1970,45 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
         props as CandlestickProps,
         children,
       );
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as CandlestickProps);
       break;
     }
 
     case 'trend': {
       const panel = buildTrendPanel(ctx, props as TrendProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as TrendProps);
       break;
     }
 
     case 'xychart': {
       const panel = buildXYChartPanel(ctx, props as XYChartProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as XYChartProps);
       break;
     }
 
     // Data display panels
     case 'logs': {
       const panel = buildLogsPanel(ctx, props as LogsProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as LogsProps);
       break;
     }
 
     case 'datagrid': {
       const panel = buildDatagridPanel(ctx, props as DatagridProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as DatagridProps);
       break;
     }
 
     // Specialized panels
     case 'nodeGraph': {
       const panel = buildNodeGraphPanel(ctx, props as NodeGraphProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as NodeGraphProps);
       break;
     }
 
     case 'traces': {
       const panel = buildTracesPanel(ctx, props as TracesProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as TracesProps);
       break;
     }
 
@@ -1795,37 +2018,32 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
         props as FlameGraphProps,
         children,
       );
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as FlameGraphProps);
       break;
     }
 
     case 'canvas': {
       const panel = buildCanvasPanel(ctx, props as CanvasProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as CanvasProps);
       break;
     }
 
     case 'geomap': {
       const panel = buildGeomapPanel(ctx, props as GeomapProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as GeomapProps);
       break;
     }
 
     // Widget panels
     case 'dashlist': {
       const panel = buildDashboardListPanel(ctx, props as DashboardListProps);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as DashboardListProps);
       break;
     }
 
     case 'alertlist': {
       const panel = buildAlertListPanel(ctx, props as AlertListProps);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as AlertListProps);
       break;
     }
 
@@ -1834,22 +2052,19 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
         ctx,
         props as AnnotationsListProps,
       );
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as AnnotationsListProps);
       break;
     }
 
     case 'news': {
       const panel = buildNewsPanel(ctx, props as NewsProps);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as NewsProps);
       break;
     }
 
     case 'plugin': {
       const panel = buildPluginPanel(ctx, props as PluginPanelProps, children);
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as PluginPanelProps);
       break;
     }
 
@@ -1858,8 +2073,24 @@ function processElement(element: React.ReactElement, ctx: RenderContext): void {
         ctx,
         props as BusinessVariablePanelProps,
       );
-      ctx.panels.push(panel);
-      updatePosition(ctx, panel);
+      addPanel(ctx, panel, props as BusinessVariablePanelProps);
+      break;
+    }
+
+    case 'defaults': {
+      const defaultsProps = props as DefaultsProps;
+      // Extract just the PanelDefaults properties (exclude children)
+      const { children: _children, ...defaults } = defaultsProps;
+      // Push defaults onto stack
+      ctx.defaultsStack.push(defaults);
+      // Process children with these defaults active
+      for (const child of children) {
+        if (React.isValidElement(child)) {
+          processElement(child, ctx);
+        }
+      }
+      // Pop defaults when done
+      ctx.defaultsStack.pop();
       break;
     }
 
@@ -1894,9 +2125,38 @@ function updatePosition(ctx: RenderContext, panel: GrafanaPanel): void {
   ctx.rowMaxY = Math.max(ctx.rowMaxY, panel.gridPos.y + panel.gridPos.h);
 }
 
+/**
+ * Add a panel to the context, applying any extend props and updating position.
+ * This is a helper that centralizes the common panel addition pattern.
+ */
+function addPanel(
+  ctx: RenderContext,
+  panel: GrafanaPanel,
+  props: BasePanelProps,
+): void {
+  // Apply extend prop if provided (deep merge raw JSON into panel)
+  if (props.extend) {
+    deepMerge(panel as unknown as Record<string, unknown>, props.extend);
+  }
+  ctx.panels.push(panel);
+  updatePosition(ctx, panel);
+}
+
 // ============================================================================
 // Public API
 // ============================================================================
+
+/**
+ * Options for rendering dashboards
+ */
+export interface RenderOptions {
+  /**
+   * Global defaults applied to all panels before dashboard-level defaults.
+   * Dashboard defaults override global defaults, and panel props override both.
+   * Use the `panels` property for per-panel-type overrides.
+   */
+  defaults?: ExtendedPanelDefaults;
+}
 
 /**
  * Render a React element tree to a Grafana dashboard JSON object
@@ -1909,14 +2169,23 @@ function updatePosition(ctx: RenderContext, panel: GrafanaPanel): void {
  *     </Row>
  *   </Dashboard>
  * );
+ *
+ * @example With global defaults
+ * const dashboard = render(
+ *   <MyDashboard />,
+ *   { defaults: { colorMode: 'palette-pastel', axisBorderShow: true } }
+ * );
  */
-export function render(element: React.ReactElement): GrafanaDashboard {
+export function render(
+  element: React.ReactElement,
+  options?: RenderOptions,
+): GrafanaDashboard {
   const componentType = getComponentType(element);
 
   // Handle function components at the root
   if (componentType === null && typeof element.type === 'function') {
     const result = (element.type as () => React.ReactElement)();
-    return render(result);
+    return render(result, options);
   }
 
   if (componentType !== 'dashboard') {
@@ -1924,7 +2193,16 @@ export function render(element: React.ReactElement): GrafanaDashboard {
   }
 
   const props = element.props as DashboardProps;
-  const ctx = createContext(props.datasource, props.datasourceType);
+  // Merge global defaults with dashboard defaults (dashboard overrides global)
+  const mergedDefaults =
+    props.defaults || options?.defaults
+      ? { ...options?.defaults, ...props.defaults }
+      : undefined;
+  const ctx = createContext(
+    props.datasource,
+    props.datasourceType,
+    mergedDefaults,
+  );
 
   // Process all children
   const children = getChildren(element);
@@ -1968,11 +2246,15 @@ export function render(element: React.ReactElement): GrafanaDashboard {
 
 /**
  * Render a React element tree to a JSON string
+ *
+ * @param element - The React element tree (usually a Dashboard component)
+ * @param options - Render options including global defaults and formatting
  */
 export function renderToString(
   element: React.ReactElement,
-  pretty = true,
+  options?: RenderOptions & { pretty?: boolean },
 ): string {
-  const dashboard = render(element);
+  const pretty = options?.pretty ?? true;
+  const dashboard = render(element, options);
   return JSON.stringify(dashboard, null, pretty ? 2 : undefined);
 }

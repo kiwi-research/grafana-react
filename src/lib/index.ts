@@ -2,7 +2,7 @@
  * Library exports
  */
 
-export { render, renderToString } from './renderer.js';
+export { render, renderToString, type RenderOptions } from './renderer.js';
 
 export {
   getChildren,

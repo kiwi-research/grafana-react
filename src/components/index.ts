@@ -11,6 +11,8 @@ export type { ComponentType } from './base.js';
 // Structure components
 export { Dashboard, type DashboardProps } from './dashboard/dashboard.js';
 export { Row, type RowProps } from './row/row.js';
+export { Container, type ContainerProps } from './container/container.js';
+export { Defaults, type DefaultsProps } from './defaults/defaults.js';
 export { Variable, type VariableProps } from './variable/variable.js';
 export { Annotation, type AnnotationProps } from './annotation/annotation.js';
 export { Link, type LinkProps } from './link/link.js';
