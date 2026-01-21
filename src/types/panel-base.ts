@@ -184,6 +184,8 @@ export interface TableColumnOverride {
   max?: number;
   /** Per-column thresholds (overrides table-level thresholds) */
   thresholds?: ThresholdSpec;
+  /** Per-column value mappings (overrides table-level value mappings) */
+  valueMappings?: ValueMapping[];
 }
 
 /** Transformation configuration */

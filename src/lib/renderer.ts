@@ -771,6 +771,13 @@ function buildTablePanel(
           },
         });
       }
+      // Per-column value mappings override
+      if (col.valueMappings) {
+        properties.push({
+          id: 'mappings',
+          value: normalizeValueMappings(col.valueMappings),
+        });
+      }
       if (properties.length > 0) {
         overrides.push({
           matcher: { id: 'byName', options: col.name },
